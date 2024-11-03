@@ -15,9 +15,16 @@ export interface Channel {
 export interface Role {
   id: string;
   name: string;
-  description: string;
   hex_color: string;
   created_at: string;
+}
+
+export interface MemberRole {
+  id: string;
+  assigned_at: string;
+  profile_id: string;
+  role_id: string;
+  server_id: string;
 }
 
 export interface Server {
@@ -60,6 +67,7 @@ export interface Member {
   username: string;
   created_at: string;
   joined_at: string;
+  roles: MemberRole[];
 }
 
 export interface BannedMember {

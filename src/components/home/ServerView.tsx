@@ -328,12 +328,6 @@ export default function ServerView() {
 
               <DropdownMenuSeparator />
 
-              {isOwner && (
-                <DropdownMenuItem>
-                  <MixIcon className="mr-2" /> Dashboard
-                </DropdownMenuItem>
-              )}
-
               <DropdownMenuItem
                 onClick={() =>
                   isOwner ? setDeletingServer(true) : setLeavingServer(true)

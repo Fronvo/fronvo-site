@@ -2,6 +2,8 @@
 
 import {
   appVersion,
+  assigningRoleData,
+  assigningRoles,
   bannedMemberData,
   banningMember,
   banningMembers,
@@ -109,6 +111,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "../ui/tooltip";
+import { Checkbox } from "../ui/checkbox";
 
 type SettingsHeader = "Account" | "Privacy" | "Appearance" | "About";
 
@@ -145,12 +148,14 @@ export default function Dialogs() {
 
   const [inviteLink, setInviteLink] = useState("");
 
+  const [descriptionChanged, setDescriptionChanged] = useState(false);
+
   const [channelName, setChannelName] = useState("");
   const [channelDescription, setChannelDescription] = useState("");
 
   const [roleName, setRoleName] = useState("");
-  const [roleDescription, setRoleDescription] = useState("");
   const [roleColor, setRoleColor] = useState("");
+  const [roleMembers, setRoleMembers] = useState<string[]>([]);
 
   // Profile options
   const [$updatingProfileNote, setUpdatingProfileNote] =
@@ -190,6 +195,9 @@ export default function Dialogs() {
   const [$creatingRole, setCreatingRole] = useWritable(creatingRole);
   const [$editingRole, setEditingRole] = useWritable(editingRole);
   const [$editingRoleData, setEditingRoleData] = useWritable(editingRoleData);
+  const [$assigningRole, setAssigningRole] = useWritable(assigningRoles);
+  const [$assigningRoleData, setAssigningRoleData] =
+    useWritable(assigningRoleData);
   const [$deletingRole, setDeletingRole] = useWritable(deletingRole);
   const [$deletingRoleData, setDeletingRoleData] =
     useWritable(deletingRoleData);
@@ -378,15 +386,6 @@ export default function Dialogs() {
       ),
       cell({ getValue }) {
         return <h1 className="ml-4">{getValue() as string}</h1>;
-      },
-    },
-    {
-      accessorKey: "description",
-      header: ({ column }) => (
-        <DataTableSortableHeader column={column} title="Description" />
-      ),
-      cell({ getValue }) {
-        return <h1 className="ml-2">{getValue() as string}</h1>;
       },
     },
     {
@@ -1336,7 +1335,9 @@ export default function Dialogs() {
             id: $serverData.id,
             channelId: $editingChannelData.id,
             name: channelName || $editingChannelData.name,
-            description: channelDescription,
+            description: descriptionChanged
+              ? channelDescription
+              : $editingChannelData.description,
           }),
           headers: {
             Authorization: Cookies.get("accessToken") as string,
@@ -1594,8 +1595,8 @@ export default function Dialogs() {
           body: JSON.stringify({
             id: $serverData.id,
             name: roleName,
-            description: roleDescription,
             color: roleColor || "#ffffff",
+            members: roleMembers,
           }),
           headers: {
             Authorization: Cookies.get("accessToken") as string,
@@ -1649,8 +1650,8 @@ export default function Dialogs() {
             id: $serverData.id,
             roleId: $editingRoleData.id,
             name: roleName || $editingRoleData.name,
-            description: roleDescription,
             color: roleColor || $editingRoleData.hex_color,
+            members: roleMembers,
           }),
           headers: {
             Authorization: Cookies.get("accessToken") as string,
@@ -1749,6 +1750,20 @@ export default function Dialogs() {
       setServerBannerData($serverData.banner);
     }
   }, [$editingServer]);
+
+  useEffect(() => {
+    setRoleMembers([]);
+  }, [$creatingRole]);
+
+  useEffect(() => {
+    setRoleMembers(
+      $serverData?.members
+        .filter((v) =>
+          v.roles.map((v) => v.role_id).includes($editingRoleData.id)
+        )
+        .map((v) => v.id)
+    );
+  }, [$editingRole]);
 
   return (
     <>
@@ -3028,7 +3043,15 @@ export default function Dialogs() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={$editingChannel} onOpenChange={setEditingChannel}>
+      <Dialog
+        open={$editingChannel}
+        onOpenChange={() => {
+          setEditingChannel(false);
+          setDescriptionChanged(false);
+          setChannelName("");
+          setChannelDescription("");
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit channel</DialogTitle>
@@ -3056,6 +3079,7 @@ export default function Dialogs() {
                 onInput={(e) => {
                   // @ts-ignore
                   setChannelDescription(e.target.value);
+                  setDescriptionChanged(true);
                 }}
               />
             </div>
@@ -3250,7 +3274,13 @@ export default function Dialogs() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={$creatingRole} onOpenChange={setCreatingRole}>
+      <Dialog
+        open={$creatingRole}
+        onOpenChange={(e) => {
+          setCreatingRole(false);
+          setRoleMembers([]);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Create role</DialogTitle>
@@ -3267,16 +3297,6 @@ export default function Dialogs() {
                 }}
               />
 
-              <Label className="text-right">Description</Label>
-              <Textarea
-                maxLength={50}
-                className="col-span-3 w-full max-h-40"
-                onInput={(e) => {
-                  // @ts-ignore
-                  setRoleDescription(e.target.value);
-                }}
-              />
-
               <Label className="text-right">Color</Label>
               <Input
                 maxLength={6}
@@ -3288,6 +3308,24 @@ export default function Dialogs() {
                 }}
                 type="color"
               />
+
+              <Label className="text-right">Members</Label>
+              <Button
+                onClick={() => {
+                  setAssigningRole(true);
+                  setAssigningRoleData({
+                    id: "-1",
+                    name: roleName,
+                    hex_color: roleColor,
+                    created_at: new Date().toString(),
+                  });
+                }}
+                variant={"outline"}
+                className="col-span-3 w-full"
+              >
+                {roleMembers?.length} member
+                {roleMembers?.length !== 1 ? "s" : ""}
+              </Button>
             </div>
           </div>
           <DialogFooter className="mobile:flex-col">
@@ -3309,7 +3347,15 @@ export default function Dialogs() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={$editingRole} onOpenChange={setEditingRole}>
+      <Dialog
+        open={$editingRole}
+        onOpenChange={(e) => {
+          setEditingRole(e);
+          setDescriptionChanged(false);
+          setRoleName("");
+          setRoleColor("");
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit role</DialogTitle>
@@ -3327,17 +3373,6 @@ export default function Dialogs() {
                 }}
               />
 
-              <Label className="text-right">Description</Label>
-              <Textarea
-                defaultValue={$editingRoleData?.description}
-                maxLength={50}
-                className="col-span-3 w-full max-h-40"
-                onInput={(e) => {
-                  // @ts-ignore
-                  setRoleDescription(e.target.value);
-                }}
-              />
-
               <Label className="text-right">Color</Label>
               <Input
                 maxLength={6}
@@ -3349,6 +3384,25 @@ export default function Dialogs() {
                 }}
                 type="color"
               />
+
+              <Label className="text-right">Members</Label>
+              <Button
+                onClick={() => {
+                  setAssigningRole(true);
+                  setAssigningRoleData({
+                    id: $editingRoleData.id,
+                    name: $editingRoleData.name,
+                    description: $editingRoleData.description,
+                    hex_color: $editingRoleData.hex_color,
+                    created_at: $editingRoleData.created_at,
+                  });
+                }}
+                variant={"outline"}
+                className="col-span-3 w-full"
+              >
+                {roleMembers?.length} member
+                {roleMembers?.length !== 1 ? "s" : ""}
+              </Button>
             </div>
           </div>
           <DialogFooter className="mobile:flex-col">
@@ -3365,6 +3419,52 @@ export default function Dialogs() {
               className="mobile:mt-2"
             >
               Update role
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={$assigningRole} onOpenChange={setAssigningRole}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Assign {$assigningRoleData?.name} to members
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-col">
+            <div className="grid grid-cols-4 items-center gap-4 mt-2 mb-2 max-h-[500px] overflow-y-auto">
+              {$serverData?.members.map((member) => (
+                <div
+                  onClick={() => {
+                    if (roleMembers.includes(member.id)) {
+                      setRoleMembers(
+                        roleMembers.filter((v) => v !== member.id)
+                      );
+                    } else {
+                      setRoleMembers([...roleMembers, member.id]);
+                    }
+                  }}
+                  className={`hover:bg-accent ${
+                    roleMembers?.includes(member.id) && "bg-accent"
+                  } pt-2.5 pb-2.5 duration-150 cursor-pointer flex items-center border rounded-lg w-full col-span-4 p-2 select-none`}
+                >
+                  <h1 className="ml-2 flex-1 text-md">{member.username}</h1>
+
+                  {roleMembers?.includes(member.id) && (
+                    <CheckIcon width={20} height={20} />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+          <DialogFooter className="mobile:flex-col">
+            <Button
+              disabled={disabled}
+              type="submit"
+              onClick={() => setAssigningRole(false)}
+              className="mobile:mt-2 flex-1"
+            >
+              Update members
             </Button>
           </DialogFooter>
         </DialogContent>
