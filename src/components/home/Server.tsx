@@ -22,6 +22,9 @@ export default function Server({ server }: Props) {
     // Default to first channel
     if (server.channels.length > 0) {
       setChannelData(server.channels[0]);
+    } else {
+      // @ts-ignore
+      setChannelData(undefined);
     }
   }
 

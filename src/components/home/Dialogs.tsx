@@ -8,6 +8,7 @@ import {
   banningMember,
   banningMembers,
   changingPassword,
+  channelData,
   creatingChannel,
   creatingRole,
   creatingServer,
@@ -76,6 +77,7 @@ import {
   DMOption,
   FilterOption,
   Member,
+  MemberRole,
   Role,
   Server,
   TabOption,
@@ -175,6 +177,7 @@ export default function Dialogs() {
   const [$deletingServer, setDeletingServer] = useWritable(deletingServer);
   const [$leavingServer, setLeavingServer] = useWritable(leavingServer);
   const [$serverData, setServerData] = useWritable(serverData);
+  const [$channelData, setChannelData] = useWritable(channelData);
   const [$creatingChannel, setCreatingChannel] = useWritable(creatingChannel);
   const [$editingChannel, setEditingChannel] = useWritable(editingChannel);
   const [$editingChannelData, setEditingChannelData] =
@@ -239,7 +242,15 @@ export default function Dialogs() {
         <DataTableSortableHeader column={column} title="Roles" />
       ),
       cell({ getValue }) {
-        return <h1 className="ml-5">{(getValue() as []).join(", ")}</h1>;
+        return (
+          <h1 className="ml-2">
+            {(getValue() as MemberRole[])
+              .map(
+                (v) => $serverData.roles.find((v2) => v2.id === v.role_id)?.name
+              )
+              .join(", ")}
+          </h1>
+        );
       },
     },
     {
@@ -1414,6 +1425,12 @@ export default function Dialogs() {
           setServerData(
             userData.servers.filter((v) => v.id === $serverData.id)[0]
           );
+
+          if ($channelData.id === $deletingChannelData.id) {
+            // @ts-ignore
+            setChannelData(undefined);
+          }
+
           setDeletingChannel(false);
         } else {
           reject((await res.json()).errors[0].message);
@@ -3392,7 +3409,6 @@ export default function Dialogs() {
                   setAssigningRoleData({
                     id: $editingRoleData.id,
                     name: $editingRoleData.name,
-                    description: $editingRoleData.description,
                     hex_color: $editingRoleData.hex_color,
                     created_at: $editingRoleData.created_at,
                   });
