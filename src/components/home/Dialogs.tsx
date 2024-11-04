@@ -3451,6 +3451,7 @@ export default function Dialogs() {
             <div className="grid grid-cols-4 items-center gap-4 mt-2 mb-2 max-h-[500px] overflow-y-auto">
               {$serverData?.members.map((member) => (
                 <div
+                  key={member.id}
                   onClick={() => {
                     if (roleMembers.includes(member.id)) {
                       setRoleMembers(

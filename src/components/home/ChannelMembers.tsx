@@ -13,7 +13,7 @@ export default function ChannelMembers() {
 
       <div className="flex flex-col w-full">
         {$serverData.members.map((member) => (
-          <MemberView member={member} />
+          <MemberView key={member.id} member={member} />
         ))}
       </div>
     </div>
