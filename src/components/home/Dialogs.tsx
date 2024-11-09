@@ -245,6 +245,7 @@ export default function Dialogs() {
         return (
           <h1 className="ml-2">
             {(getValue() as MemberRole[])
+              .filter((v) => v.server_id === $serverData.id)
               .map(
                 (v) => $serverData.roles.find((v2) => v2.id === v.role_id)?.name
               )
