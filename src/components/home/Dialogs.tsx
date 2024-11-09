@@ -1341,15 +1341,23 @@ export default function Dialogs() {
 
     async function editChannelPromise() {
       return new Promise(async (resolve, reject) => {
+        const newChannelData: Channel = {
+          id: $editingChannelData.id,
+          name: channelName || $editingChannelData.name,
+          description: descriptionChanged
+            ? channelDescription
+            : $editingChannelData.description,
+          created_at: $editingChannelData.created_at,
+          server_id: $editingChannelData.server_id,
+        };
+
         const res = await fetch("/api/channels/edit", {
           method: "POST",
           body: JSON.stringify({
             id: $serverData.id,
-            channelId: $editingChannelData.id,
-            name: channelName || $editingChannelData.name,
-            description: descriptionChanged
-              ? channelDescription
-              : $editingChannelData.description,
+            channelId: newChannelData.id,
+            name: newChannelData.name,
+            description: newChannelData.description,
           }),
           headers: {
             Authorization: Cookies.get("accessToken") as string,
@@ -1374,6 +1382,11 @@ export default function Dialogs() {
           setServerData(
             userData.servers.filter((v) => v.id === $serverData.id)[0]
           );
+
+          if ($channelData.id === $editingChannelData.id) {
+            setChannelData(newChannelData);
+          }
+
           setEditingChannel(false);
           setChannelName("");
           setChannelDescription("");
