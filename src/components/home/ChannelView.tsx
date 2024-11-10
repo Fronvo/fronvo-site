@@ -14,7 +14,7 @@ export default function ChannelView() {
           <ChannelInput />
         </div>
 
-        <ChannelMembers />
+        {document.body.clientWidth > 1075 && <ChannelMembers />}
       </div>
     </div>
   );

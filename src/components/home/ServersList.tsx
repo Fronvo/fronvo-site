@@ -8,17 +8,29 @@ import {
   TooltipTrigger,
 } from "../ui/tooltip";
 import { useReadable, useWritable } from "react-use-svelte-store";
-import { creatingServer, joiningServer, userData } from "@/lib/stores";
+import {
+  channelData,
+  creatingServer,
+  joiningServer,
+  userData,
+} from "@/lib/stores";
 import Server from "./Server";
 import HomeButton from "./HomeButton";
 
 export default function ServersList() {
   const $userData = useReadable(userData);
+  const $channelData = useReadable(channelData);
   const [_, setCreatingServer] = useWritable(creatingServer);
   const [__, setJoiningServer] = useWritable(joiningServer);
 
   return (
-    <div className="no-scrollbar text-center w-[80px] border-r pb-2 border-1 h-full overflow-x-hidden overflow-y-auto">
+    <div
+      className="no-scrollbar text-center w-[80px] border-r pb-2 border-1 h-full overflow-x-hidden overflow-y-auto"
+      style={{
+        display:
+          document.body.clientWidth < 1075 && $channelData ? "none" : "block",
+      }}
+    >
       <HomeButton />
 
       <Separator className="w-[75%] m-auto mb-4" />
