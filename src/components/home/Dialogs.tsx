@@ -2430,7 +2430,7 @@ export default function Dialogs() {
           setServerBannerData("");
         }}
       >
-        <DialogContent className="w-max max-w-none min-w-none pt-10 h-[375px]">
+        <DialogContent className="mobile:w-full w-max max-w-none min-w-none pt-10 h-[375px]">
           {!serverBannerData ? (
             <div className="mobile:w-full w-[600px] h-[240px] border border-1 rounded-md">
               <Pencil1Icon
@@ -2673,7 +2673,7 @@ export default function Dialogs() {
           setServerBannerData("");
         }}
       >
-        <DialogContent className="w-max max-w-none min-w-none pt-10 h-[375px]">
+        <DialogContent className="mobile:w-full w-max max-w-none min-w-none pt-10 h-[375px]">
           {!serverBannerData ? (
             <div className="mobile:w-full w-[600px] h-[240px] border border-1 rounded-md">
               <Pencil1Icon
