@@ -39,7 +39,7 @@ export default function ServerChannel({ channel }: Props) {
           variant={"outline"}
           className={`${
             $channelData?.id === channel.id && "bg-accent border-accent"
-          } m-auto w-[90%] flex h-9 justify-start focus-none`}
+          } m-auto w-[90%] flex h-9 justify-start focus-none select-none`}
           tabIndex={-1}
           onClick={() => setChannelData(channel)}
         >
