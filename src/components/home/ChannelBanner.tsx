@@ -28,27 +28,27 @@ export default function ChannelBanner() {
       <span className="flex-1" />
 
       {document.body.clientWidth < 1075 && (
-        <Button size="icon" variant={"outline"} className="rounded-full">
-          <Sheet>
-            <SheetTrigger asChild>
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button size="icon" variant={"outline"} className="rounded-full">
               <ChevronLeftIcon />
-            </SheetTrigger>
+            </Button>
+          </SheetTrigger>
 
-            <SheetContent>
-              <div className="w-full flex flex-col h-full items-center select-none">
-                <h1 className="text-xs font-semibold uppercase opacity-75 w-full mt-3 mb-2 ml-7">
-                  Members -- {$serverData.members.length}
-                </h1>
+          <SheetContent>
+            <div className="w-full flex flex-col h-full items-center select-none">
+              <h1 className="text-xs font-semibold uppercase opacity-75 w-full mt-3 mb-2 ml-7">
+                Members -- {$serverData.members.length}
+              </h1>
 
-                <div className="flex flex-col w-full">
-                  {$serverData.members.map((member) => (
-                    <MemberView key={member.id} member={member} />
-                  ))}
-                </div>
+              <div className="flex flex-col w-full">
+                {$serverData.members.map((member) => (
+                  <MemberView key={member.id} member={member} />
+                ))}
               </div>
-            </SheetContent>
-          </Sheet>
-        </Button>
+            </div>
+          </SheetContent>
+        </Sheet>
       )}
     </div>
   );
