@@ -363,7 +363,7 @@ export default function TopNav({
                     onClick={() => setMessaging(!$messaging)}
                     variant={"ghost"}
                     size="icon"
-                    className="ml-2"
+                    className="ml-2 mr-2"
                   >
                     {!$messaging ? (
                       <PaperPlaneIcon width={20} height={20} />
@@ -377,33 +377,6 @@ export default function TopNav({
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
-
-            <Popover>
-              <PopoverTrigger>
-                <TooltipProvider delayDuration={750} disableHoverableContent>
-                  <Tooltip>
-                    <TooltipTrigger className="mr-2 ml-2" asChild>
-                      <Button variant={"ghost"} size="icon">
-                        <BellIcon width={20} height={20} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>Notifications</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </PopoverTrigger>
-              <PopoverContent className="w-64 shadow-lg translate-y-6 bg-popover duration-200 border p-4 rounded-lg data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0  data-[state=closed]:slide-out-to-left-5/6 data-[state=closed]:slide-out-to-top-5/6 data-[state=open]:slide-in-from-left-5/6 data-[state=open]:slide-in-from-top-5/6 ">
-                <div className="flex flex-col items-center justify-center pt-12 pb-12">
-                  <BellIcon
-                    width={64}
-                    height={64}
-                    className="w-[48px] h-[48px]"
-                  />
-                  <h1 className="text-sm font-medium mt-2">
-                    No new notifications
-                  </h1>
-                </div>
-              </PopoverContent>
-            </Popover>
           </>
         )}
 
