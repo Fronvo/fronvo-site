@@ -1940,7 +1940,7 @@ export default function Dialogs() {
       </Dialog>
 
       <Dialog open={$settingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="mobile:h-screen mobile:w-screen mobile:rounded-none mobile:border-none w-[90vw] max-w-none h-[90vh] flex flex-col p-0">
+        <DialogContent className="mobile:h-screen mobile:w-screen mobile:rounded-none mobile:border-none lg:w-[90vw] max-w-none h-full lg:h-[90vh] flex flex-col p-0">
           <div className="mobile:flex-col flex p-0 m-0 flex-1">
             <div className="bg-accent/15 border-r border-1 flex mobile:justify-center lg:flex-col mr-6 pl-6 pr-6 mobile:mr-0 mobile:pl-0 mobile:mb-1">
               <h1 className="mobile:hidden font-bold text-center mb-2 mt-2">
@@ -3164,7 +3164,7 @@ export default function Dialogs() {
       </Dialog>
 
       <Dialog open={$managingMembers} onOpenChange={setManagingMembers}>
-        <DialogContent className="flex flex-col w-[90vw] max-w-none h-[90vh]">
+        <DialogContent className="flex flex-col lg:w-[90vw] max-w-none h-full lg:h-[90vh]">
           <DialogTitle>
             {$serverData?.members.length} member
             {$serverData?.members.length !== 1 ? "s" : ""}
@@ -3191,7 +3191,7 @@ export default function Dialogs() {
       </Dialog>
 
       <Dialog open={$banningMembers} onOpenChange={setBanningMembers}>
-        <DialogContent className="flex flex-col w-[90vw] max-w-none h-[90vh]">
+        <DialogContent className="flex flex-col lg:w-[90vw] max-w-none h-full lg:h-[90vh]">
           <DialogTitle>
             {$serverData?.banned_members.length > 0
               ? $serverData?.banned_members.length
@@ -3531,7 +3531,7 @@ export default function Dialogs() {
       </Dialog>
 
       <Dialog open={$managingRoles} onOpenChange={setManagingRoles}>
-        <DialogContent className="flex flex-col w-[90vw] max-w-none h-[90vh]">
+        <DialogContent className="flex flex-col lg:w-[90vw] max-w-none h-full lg:h-[90vh]">
           <DialogTitle>
             {$serverData?.roles.length > 0 ? $serverData?.roles.length : "No"}{" "}
             role
@@ -3558,7 +3558,7 @@ export default function Dialogs() {
       </Dialog>
 
       <Dialog open={$managingChannels} onOpenChange={setManagingChannels}>
-        <DialogContent className="flex flex-col w-[90vw] max-w-none h-[90vh]">
+        <DialogContent className="flex flex-col lg:w-[90vw] max-w-none h-full lg:h-[90vh]">
           <DialogTitle>
             {$serverData?.channels.length > 0
               ? $serverData?.channels.length
