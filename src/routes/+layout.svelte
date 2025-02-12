@@ -44,10 +44,10 @@
     import { io, Socket } from 'socket.io-client';
     import { PUBLIC_FRONVO_API_URL } from '$env/static/public';
     import Cookies from 'js-cookie';
-    import { S2CProfiles } from 'interfaces/profiles/s2c';
-    import { S2CDMs } from 'interfaces/dms/s2c';
-    import { S2CServers } from 'interfaces/servers/s2c';
-    import { Server } from 'interfaces/all';
+    import type { S2CProfiles } from 'interfaces/profiles/s2c';
+    import type { S2CDMs } from 'interfaces/dms/s2c';
+    import type { S2CServers } from 'interfaces/servers/s2c';
+    import type { Server } from 'interfaces/all';
 
     let mountReady = false;
 

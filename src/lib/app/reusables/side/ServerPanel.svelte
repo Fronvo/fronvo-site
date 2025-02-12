@@ -30,7 +30,7 @@
         DropdownMenuTrigger,
     } from '$lib/components/ui/dropdown-menu';
     import { ourData } from 'stores/profile';
-    import {
+    import type {
         BannedMember,
         Channel,
         FronvoAccount,
@@ -57,7 +57,7 @@
         TooltipContent,
         TooltipTrigger,
     } from '$lib/components/ui/tooltip';
-    import { Unsubscriber } from 'svelte/motion';
+    import type { Unsubscriber } from 'svelte/motion';
     import PreviewLarge from '../all/PreviewLarge.svelte';
     import { targetProfileModal } from 'stores/modals';
 

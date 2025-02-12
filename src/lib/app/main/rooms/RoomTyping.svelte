@@ -85,7 +85,7 @@
     class:opacity-100={$typing.length > 0}
 >
     <div class="flex items-center">
-        {#each $typing as { profileId, username, avatar }, i}
+        {#each $typing as { id, username, avatar }, i}
             <!-- Up to 4 avatars -->
             {#if i < 3}
                 <img
@@ -93,7 +93,7 @@
                         ? `${avatar}/tr:w-32:h-32`
                         : '/images/avatar.svg'}
                     draggable={false}
-                    alt={`${profileId}\'s avatar'`}
+                    alt={`${id}\'s avatar'`}
                     class={`${
                         !avatar &&
                         'bg-primary border-accent border-[1px] p-[2px]'

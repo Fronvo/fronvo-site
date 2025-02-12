@@ -1,5 +1,5 @@
 <script lang="ts">
-    import SpotifyWebApi from 'spotify-web-api-node';
+    import type SpotifyWebApi from 'spotify-web-api-node';
     import SpotifyAPI from 'spotify-web-api-node';
     import { ourData } from 'stores/profile';
     import { onDestroy, onMount } from 'svelte';

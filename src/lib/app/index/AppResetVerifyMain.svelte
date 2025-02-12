@@ -12,7 +12,6 @@
     import Input from '$lib/components/ui/input/input.svelte';
     import Label from '$lib/components/ui/label/label.svelte';
     import { promotedToRVerify, resetVerifyEmail } from 'stores/index';
-    import { socket } from 'stores/main';
     import { onMount } from 'svelte';
     import {
         getRequestError,

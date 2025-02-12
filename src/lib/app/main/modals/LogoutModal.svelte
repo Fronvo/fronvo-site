@@ -1,6 +1,5 @@
 <script lang="ts">
     import { loggingOut } from 'stores/modals';
-    import { socket } from 'stores/main';
     import {
         Dialog,
         DialogClose,

@@ -1,6 +1,6 @@
 <script lang="ts">
     import Progress from '$lib/components/ui/progress/progress.svelte';
-    import { SpotifyCurrentTrack } from 'interfaces/all';
+    import type { SpotifyCurrentTrack } from 'interfaces/all';
 
     export let track: SpotifyCurrentTrack;
 </script>

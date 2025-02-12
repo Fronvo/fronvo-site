@@ -2,7 +2,6 @@ import { GENERAL_SECRET, GITHUB_CLIENT_SECRET } from '$env/static/private';
 import { PUBLIC_GITHUB_CLIENT_ID } from '$env/static/public';
 import { json } from '@sveltejs/kit';
 import { io } from 'socket.io-client';
-import { SERVER_URL } from 'stores/main.js';
 
 /** @type {import('./$types').PageLoad} */
 export async function POST({ request, url }) {
@@ -34,52 +33,49 @@ export async function POST({ request, url }) {
     if (!res.ok) {
         return json('500');
     }
-    const client = io(SERVER_URL, {
-        transports: ['websocket'],
-        path: '/fronvo',
-    });
 
-    async function connectGithub(): Promise<number> {
-        return new Promise((resolve) => {
-            client.on('connect', () => {
-                client.emit(
-                    'loginToken',
-                    {
-                        token,
-                    },
-                    async ({ err }) => {
-                        if (!err) {
-                            // Get account info
-                            const info = await (
-                                await fetch(`https://api.github.com/user`, {
-                                    headers: {
-                                        Authorization: `${jsonRes.token_type} ${jsonRes.access_token}`,
-                                    },
-                                })
-                            ).json();
-                            client.emit(
-                                'updateConnectionGithub',
-                                {
-                                    secret: GENERAL_SECRET,
-                                    name: info.name,
-                                    url: info.html_url,
-                                },
-                                ({ err }) => {
-                                    client.emit('logout');
+    // TODO: Implement server-side
+    // async function connectGithub(): Promise<number> {
+    //     return new Promise((resolve) => {
+    //         client.on('connect', () => {
+    //             client.emit(
+    //                 'loginToken',
+    //                 {
+    //                     token,
+    //                 },
+    //                 async ({ err }) => {
+    //                     if (!err) {
+    //                         // Get account info
+    //                         const info = await (
+    //                             await fetch(`https://api.github.com/user`, {
+    //                                 headers: {
+    //                                     Authorization: `${jsonRes.token_type} ${jsonRes.access_token}`,
+    //                                 },
+    //                             })
+    //                         ).json();
+    //                         client.emit(
+    //                             'updateConnectionGithub',
+    //                             {
+    //                                 secret: GENERAL_SECRET,
+    //                                 name: info.name,
+    //                                 url: info.html_url,
+    //                             },
+    //                             ({ err }) => {
+    //                                 client.emit('logout');
 
-                                    if (!err) {
-                                        resolve(200);
-                                    } else {
-                                        resolve(500);
-                                    }
-                                }
-                            );
-                        }
-                    }
-                );
-            });
-        });
-    }
+    //                                 if (!err) {
+    //                                     resolve(200);
+    //                                 } else {
+    //                                     resolve(500);
+    //                                 }
+    //                             }
+    //                         );
+    //                     }
+    //                 }
+    //             );
+    //         });
+    //     });
+    // }
 
-    return json(await connectGithub());
+    // return json(await connectGithub());
 }

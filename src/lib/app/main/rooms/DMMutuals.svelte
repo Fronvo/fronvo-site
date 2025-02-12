@@ -92,10 +92,10 @@
                         class="w-full hover:bg-accent/50 flex items-center pt-5 pb-5 pl-2 pr-2 justify-start duration-0 rounded-none"
                         on:click={() => enterMutualServer(i)}
                     >
-                        {#if server.icon}
+                        {#if server.avatar}
                             <img
                                 id="icon"
-                                src={`${server.icon}/tr:w-64:h-64`}
+                                src={`${server.avatar}/tr:w-64:h-64`}
                                 alt={`${server.name}\'s icon'`}
                                 draggable={false}
                             />

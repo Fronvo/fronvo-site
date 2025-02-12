@@ -32,7 +32,7 @@
         DropdownMenuTrigger,
     } from '$lib/components/ui/dropdown-menu';
     import Input from '$lib/components/ui/input/input.svelte';
-    import { TenorGifs } from 'interfaces/all';
+    import type { TenorGifs } from 'interfaces/all';
     import PropFavorite from '$lib/app/reusables/rooms/PropFavorite.svelte';
     import { fade } from 'svelte/transition';
     import { flyAndScaleImmediate } from '$lib/utils';

@@ -1,4 +1,4 @@
-import { GENERAL_SECRET, SPOTIFY_CLIENT_SECRET } from '$env/static/private';
+import { SPOTIFY_CLIENT_SECRET } from '$env/static/private';
 import {
     PUBLIC_FRONVO_API_URL,
     PUBLIC_SPOTIFY_CLIENT_ID,
@@ -6,7 +6,6 @@ import {
 import { json } from '@sveltejs/kit';
 import queryString from 'querystring';
 import { io } from 'socket.io-client';
-import { SERVER_URL } from 'stores/main.js';
 
 /** @type {import('./$types').PageLoad} */
 export async function POST({ request, url }) {
@@ -47,50 +46,50 @@ export async function POST({ request, url }) {
         path: '/fronvo',
     });
 
-    async function connectSpotify(): Promise<number> {
-        return new Promise((resolve) => {
-            client.on('connect', () => {
-                client.emit(
-                    'loginToken',
-                    {
-                        token,
-                    },
-                    async ({ err }) => {
-                        if (!err) {
-                            // Get account info
-                            const info = await (
-                                await fetch(`https://api.spotify.com/v1/me`, {
-                                    headers: {
-                                        Authorization: `${jsonRes.token_type} ${jsonRes.access_token}`,
-                                    },
-                                })
-                            ).json();
-                            client.emit(
-                                'updateConnectionSpotify',
-                                {
-                                    secret: GENERAL_SECRET,
-                                    name: info.display_name,
-                                    url: info.external_urls.spotify,
-                                    refreshToken: jsonRes.refresh_token,
-                                    accessToken: jsonRes.access_token,
-                                    tokenType: jsonRes.token_type,
-                                },
-                                ({ err }) => {
-                                    client.emit('logout');
+    // async function connectSpotify(): Promise<number> {
+    //     return new Promise((resolve) => {
+    //         client.on('connect', () => {
+    //             client.emit(
+    //                 'loginToken',
+    //                 {
+    //                     token,
+    //                 },
+    //                 async ({ err }) => {
+    //                     if (!err) {
+    //                         // Get account info
+    //                         const info = await (
+    //                             await fetch(`https://api.spotify.com/v1/me`, {
+    //                                 headers: {
+    //                                     Authorization: `${jsonRes.token_type} ${jsonRes.access_token}`,
+    //                                 },
+    //                             })
+    //                         ).json();
+    //                         client.emit(
+    //                             'updateConnectionSpotify',
+    //                             {
+    //                                 secret: GENERAL_SECRET,
+    //                                 name: info.display_name,
+    //                                 url: info.external_urls.spotify,
+    //                                 refreshToken: jsonRes.refresh_token,
+    //                                 accessToken: jsonRes.access_token,
+    //                                 tokenType: jsonRes.token_type,
+    //                             },
+    //                             ({ err }) => {
+    //                                 client.emit('logout');
 
-                                    if (!err) {
-                                        resolve(200);
-                                    } else {
-                                        resolve(500);
-                                    }
-                                }
-                            );
-                        }
-                    }
-                );
-            });
-        });
-    }
+    //                                 if (!err) {
+    //                                     resolve(200);
+    //                                 } else {
+    //                                     resolve(500);
+    //                                 }
+    //                             }
+    //                         );
+    //                     }
+    //                 }
+    //             );
+    //         });
+    //     });
+    // }
 
-    return json(await connectSpotify());
+    // return json(await connectSpotify());
 }

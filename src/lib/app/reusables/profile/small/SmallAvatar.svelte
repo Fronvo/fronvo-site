@@ -1,10 +1,10 @@
 <script lang="ts">
-    import { FronvoAccount } from 'interfaces/all';
+    import type { FronvoAccount } from 'interfaces/all';
     import { cachedAccountData } from 'stores/main';
     import { targetProfileModal, viewingProfile } from 'stores/modals';
     import { currentRoomData } from 'stores/rooms';
     import { onDestroy, onMount } from 'svelte';
-    import { Unsubscriber } from 'svelte/motion';
+    import type { Unsubscriber } from 'svelte/motion';
     import { findCachedAccount } from 'utilities/main';
     import Indicator from '../../all/Indicator.svelte';
 
