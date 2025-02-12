@@ -24,10 +24,6 @@
         "prepare": "husky install"
     },
     "type": "module",
-    "engines": {
-        "node": "16.x",
-        "npm": "8.x"
-    },
     "devDependencies": {
         "@stripe/stripe-js": "^5.4.0",
         "@sveltejs/adapter-vercel": "next",
