@@ -2,149 +2,91 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+    :root {
+        --background: 199 0% 100%;
+        --foreground: 199 0% 10%;
+        --card: 199 0% 100%;
+        --card-foreground: 199 0% 15%;
+        --popover: 199 0% 100%;
+        --popover-foreground: 199 95% 10%;
+        --primary: 199 0% 20%;
+        --primary-foreground: 0 0% 100%;
+        --secondary: 199 10% 90%;
+        --secondary-foreground: 0 0% 0%;
+        --muted: 161 10% 95%;
+        --muted-foreground: 199 0% 40%;
+        --accent: 161 10% 92.5%;
+        --accent-foreground: 199 0% 15%;
+        --destructive: 0 75% 60%;
+        --destructive-foreground: 199 0% 100%;
+        --border: 255 0% 90%;
+        --input: 255 0% 80%;
+        --ring: 199 0% 0%;
+        --radius: 0.5rem;
+        --online: 150 100% 45%;
+        --dnd: 0 100% 55%;
+        --idle: 35 100% 50%;
+        --offline: 255 0% 50%;
+        --link: 196 96% 44%;
+    }
+
+    .dark {
+        --background: 226 10% 7%;
+        --foreground: 240 0% 90%;
+        --card: 226 10% 7%;
+        --card-foreground: 240 0% 90%;
+        --popover: 240 10% 8%;
+        --popover-foreground: 240 0% 90%;
+        --primary: 240 0% 100%;
+        --primary-foreground: 0 0% 0%;
+        --secondary: 240 10% 10%;
+        --secondary-foreground: 0 0% 100%;
+        --muted: 202 10% 15%;
+        --muted-foreground: 240 0% 60%;
+        --accent: 202 10% 15%;
+        --accent-foreground: 240 0% 90%;
+        --destructive: 0 75% 50%;
+        --destructive-foreground: 240 0% 90%;
+        --border: 255 0% 12%;
+        --input: 255 0% 20%;
+        --ring: 240 0% 100%;
+        --radius: 0.5rem;
+        --online: 142 100% 42%;
+        --dnd: 0 100% 40%;
+        --idle: 35 100% 50%;
+        --offline: 100 0% 45%;
+        --link: 196 96% 50%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+    body {
+        @apply bg-background text-foreground;
+    }
+}
+
 * {
-    -webkit-box-sizing: border-box;
-    -moz-box-sizing: border-box;
-    box-sizing: border-box;
+    font-family: Manrope;
 }
 
 html {
-    overflow: hidden;
-    height: 100vh;
+    scroll-behavior: smooth;
+    overflow-y: hidden;
 }
 
 body {
-    margin: 0;
-    padding: 0;
-    height: 100vh;
+    overflow-x: hidden;
+    overflow-y: hidden;
 }
 
-svg {
-    cursor: pointer;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    width: 36px;
-    height: 36px;
+a {
+    text-decoration: underline;
 }
 
-img {
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-}
-
-a:focus {
-    outline-color: white;
-}
-
-h1 {
-    font-family: 'Manrope';
-    font-weight: 500;
-    color: var(--text);
-}
-
-button {
-    border: none;
-    border-radius: 5px;
-    padding: 10px;
-    font-family: 'Manrope';
-    font-weight: 400;
-    cursor: pointer;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
-    backdrop-filter: blur(10px);
-    border-radius: 5px;
-    background: rgb(255, 255, 255, 0.075);
-    box-shadow: 0 0 100px rgb(15, 15, 15);
-    box-shadow: none;
-    transition: 150ms;
-    color: white;
+*:focus {
     outline: none;
-}
-
-button:hover {
-    background: rgb(255, 255, 255, 0.15);
-    color: white;
-}
-
-button:active {
-    opacity: 0.8;
-}
-
-button:disabled {
-    opacity: 0.5;
-}
-
-input,
-textarea {
-    border: none;
-    border-radius: 5px;
-    font-family: 'Manrope';
-    color: var(--text);
-    padding: 5px;
-}
-
-textarea {
-    resize: none;
-}
-
-textarea::placeholder {
-    color: var(--text_gray);
-}
-
-input:disabled,
-textarea:disabled {
-    background: rgba(255, 255, 255, 85%);
-    color: var(--text_gray);
-}
-
-input:focus,
-textarea:focus {
-    outline: none;
-}
-
-hr {
-    border: 1px solid var(--text);
-    transition: none;
-}
-
-::-webkit-scrollbar {
-    width: 3px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: var(--tertiary);
-    border-radius: 30px;
-}
-
-/* Bare minimum phone essentials */
-@media screen and (max-width: 850px) {
-    img {
-        cursor: default;
-    }
-
-    svg {
-        width: 40px;
-        height: 40px;
-        cursor: default;
-    }
-
-    svg:active {
-        transform: scale(0.95);
-    }
-
-    button {
-        cursor: default;
-    }
 }

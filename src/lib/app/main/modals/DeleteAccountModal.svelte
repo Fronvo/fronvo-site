@@ -1,114 +1,93 @@
 <script lang="ts">
-    import { dismissModal } from 'utilities/main';
-    import ModalTemplate from '../ModalTemplate.svelte';
-    import { modalLoading, type ModalData } from 'stores/modals';
-    import { socket } from 'stores/main';
-    import ErrorHeader from '$lib/app/reusables/all/ErrorHeader.svelte';
+    import Button from '$lib/components/ui/button/button.svelte';
+    import {
+        Dialog,
+        DialogClose,
+        DialogContent,
+        DialogDescription,
+        DialogTitle,
+    } from '$lib/components/ui/dialog';
+    import Input from '$lib/components/ui/input/input.svelte';
+    import { deletingAccount } from 'stores/modals';
+    import Cookies from 'js-cookie';
+    import {
+        getRequestError,
+        isRequestErrored,
+        sendDeleteRequest,
+    } from 'utilities/main';
 
+    let processing = false;
     let errorMessage: string;
+    let password = '';
+    let extraText = '';
 
-    let password: string;
+    async function deleteAccount() {
+        if (extraText !== 'delete my account') return;
+        if (password.length < 8) return;
 
-    function deleteAccount(): void {
-        $modalLoading = true;
+        processing = true;
 
-        socket.emit(
-            'deleteAccount',
-            {
-                password: password ? password : '',
-            },
-            ({ err }) => {
-                if (err) {
-                    $modalLoading = false;
-                } else {
-                    localStorage.clear();
+        const res = await sendDeleteRequest('login', { password });
 
-                    dismissModal(() => {
-                        location.href = '/';
-                    });
-                }
-            }
-        );
+        if (isRequestErrored(res)) {
+            errorMessage = getRequestError(res);
+
+            processing = false;
+        } else {
+            Cookies.remove('refreshToken');
+            Cookies.remove('accessToken');
+            localStorage.clear();
+
+            location.href = '/';
+        }
     }
-
-    const data: ModalData = {
-        title: 'Delete account',
-        actions: [
-            {
-                title: 'Delete account',
-                danger: true,
-                callback: deleteAccount,
-            },
-            {
-                title: 'Dismiss',
-                callback: dismissModal,
-            },
-        ],
-    };
 </script>
 
-<ModalTemplate {data}>
-    <ErrorHeader {errorMessage} size="1.2rem" />
+<Dialog
+    bind:open={$deletingAccount}
+    onOpenChange={(e) => {
+        $deletingAccount = e;
+        password = '';
+        extraText = '';
+    }}
+>
+    <DialogContent>
+        <DialogTitle>Delete account</DialogTitle>
+        <DialogDescription
+            >Follow these steps to delete your Fronvo account</DialogDescription
+        >
 
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="32"
-        height="32"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        ><path
-            fill-rule="evenodd"
-            d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12s4.477 10 10 10s10-4.477 10-10ZM12 6.25a.75.75 0 0 1 .75.75v6a.75.75 0 0 1-1.5 0V7a.75.75 0 0 1 .75-.75ZM12 17a1 1 0 1 0 0-2a1 1 0 0 0 0 2Z"
-            clip-rule="evenodd"
-        /></svg
-    >
+        {#if errorMessage}
+            <h1 class="text-destructive text-sm font-medium">{errorMessage}</h1>
+        {/if}
 
-    <h1 class="modal-header">This can't be undone.</h1>
+        <Input
+            bind:value={password}
+            placeholder="Your password"
+            type="password"
+        />
 
-    <input
-        placeholder="Password"
-        bind:value={password}
-        class="modal-input"
-        type="password"
-    />
-</ModalTemplate>
+        <h1 class="text-sm mt-1 select-none">
+            Type <b>delete my account</b> below
+        </h1>
 
-<style>
-    svg {
-        width: 128px;
-        height: 128px;
-        fill: white;
-        margin-top: 10px;
-        cursor: default;
-    }
+        <Input bind:value={extraText} />
 
-    h1 {
-        margin-bottom: 30px;
-    }
+        <div class="flex">
+            <DialogClose disabled={processing}
+                ><Button variant="outline" disabled={processing}>Cancel</Button
+                ></DialogClose
+            >
 
-    input {
-        border: 2px solid transparent;
-        transition: 150ms;
-        font-weight: 500;
-    }
+            <span class="flex-1" />
 
-    input:focus {
-        border: 2px solid white;
-    }
-
-    @media screen and (max-width: 850px) {
-        svg {
-            width: 80px;
-            height: 80px;
-        }
-
-        h1 {
-            font-size: 0.9rem;
-        }
-
-        input {
-            width: 70vw;
-            font-size: 1rem;
-        }
-    }
-</style>
+            <Button
+                disabled={password.length < 8 ||
+                    extraText !== 'delete my account' ||
+                    processing}
+                variant="destructive"
+                on:click={deleteAccount}>Delete account</Button
+            >
+        </div>
+    </DialogContent>
+</Dialog>

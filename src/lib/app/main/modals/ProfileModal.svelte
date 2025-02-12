@@ -1,16 +1,21 @@
 <script lang="ts">
-    import ModalTemplate from '../ModalTemplate.svelte';
-    import { targetProfileModal, type ModalData } from 'stores/modals';
+    import { targetProfileModal, viewingProfile } from 'stores/modals';
     import PreviewLarge from '$lib/app/reusables/all/PreviewLarge.svelte';
+    import { Dialog } from '$lib/components/ui/dialog';
+    import DialogContent from '$lib/components/ui/dialog/dialog-content.svelte';
+    import { ourData } from 'stores/profile';
 
-    const profileData = $targetProfileModal;
+    ourData.subscribe((state) => {
+        if (!state || !$targetProfileModal) return;
 
-    const data: ModalData = {
-        noDecoration: true,
-        transparent: false,
-    };
+        if ($targetProfileModal.id === $ourData.id) {
+            $targetProfileModal = $ourData;
+        }
+    });
 </script>
 
-<ModalTemplate {data}>
-    <PreviewLarge {profileData} />
-</ModalTemplate>
+<Dialog open={$viewingProfile} onOpenChange={(e) => ($viewingProfile = e)}>
+    <DialogContent>
+        <PreviewLarge profileData={$targetProfileModal} />
+    </DialogContent>
+</Dialog>

@@ -1,12 +1,12 @@
 <script lang="ts">
     import { indexVisible, promotedToRVerify } from 'stores/index';
     import { onMount } from 'svelte';
-    import { getKey } from 'utilities/global';
     import { cachedAccountData, showLayout } from 'stores/main';
     import { redirectApp } from 'utilities/index';
     import { performLogin } from 'utilities/main';
     import { goto } from '$app/navigation';
     import AppResetVerifyMain from '$lib/app/index/AppResetVerifyMain.svelte';
+    import Cookies from 'js-cookie';
 
     let mountReady = false;
 
@@ -20,14 +20,14 @@
         }
 
         // Remove for registered users
-        if (getKey('token')) {
+        if (Cookies.get('refreshToken')) {
             redirectApp();
 
-            goto('/', {
+            goto('/app', {
                 replaceState: true,
             });
 
-            await performLogin(getKey('token'), $cachedAccountData);
+            await performLogin($cachedAccountData);
             return;
         }
 
@@ -44,15 +44,6 @@
 
 {#if mountReady && $indexVisible}
     <div class="index-container">
-        {#if $indexVisible}
-            <AppResetVerifyMain />
-        {/if}
+        <AppResetVerifyMain />
     </div>
 {/if}
-
-<style>
-    .index-container {
-        width: 100%;
-        height: 100vh;
-    }
-</style>

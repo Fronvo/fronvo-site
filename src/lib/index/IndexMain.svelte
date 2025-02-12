@@ -1,13 +1,11 @@
 <script lang="ts">
-    import { goto } from '$app/navigation';
     import { onMount } from 'svelte';
-    import { blur, fly } from 'svelte/transition';
+    import Button from '$lib/components/ui/button/button.svelte';
+    import { GithubLogo } from 'radix-icons-svelte';
+    import { checkHasJWT } from 'utilities/main';
 
     let mountReady = false;
-
-    function gotoApp(): void {
-        goto('/app');
-    }
+    let hasJWT = checkHasJWT();
 
     onMount(() => {
         mountReady = true;
@@ -16,32 +14,36 @@
 
 {#if mountReady}
     <div
-        class="mobile:mb-[50px] w-full h-screen flex text-center items-center justify-center flex-col"
+        class="xs:h-[90vh] xs:overflow-hidden h-[100vh] w-full flex flex-col items-center justify-center text-center"
     >
         <h1
-            class="smobile:text-3xl mobile:text-4xl mobile:mr-4 mobile:ml-4 text-5xl text-white font-extrabold mb-6"
-            transition:fly={{ y: -50, duration: 500 }}
+            class="xs:text-[1.7rem] font-extrabold text-5xl tracking-tighter pb-3"
         >
-            All of your social media, in one.
-        </h1>
-        <h1
-            class="smobile:text-base mobile:text-lg text-2xl text-white"
-            transition:fly={{ y: -40, duration: 550, delay: 600 }}
-        >
-            Your favorite social media, merged into one.
-        </h1>
-        <h1
-            class="smobile:text-base mobile:text-lg text-2xl text-white"
-            transition:fly={{ y: -20, duration: 550, delay: 850 }}
-        >
-            You're at the right place.
+            Private social media, reimagined.
         </h1>
 
-        <button
-            class="smobile:w-44 smobile:text-base mobile:w-48 mobile:h-12 mobile:text-lg w-52 h-16 text-2xl text-white font-semibold mt-6"
-            on:click={gotoApp}
-            transition:blur={{ duration: 500, delay: 1200 }}
-            >Explore Fronvo</button
-        >
+        <h1 class="xs:text-sm xs:w-[90%] w-[500px] text-lg">
+            Imagine a social media world where everything is customisable and
+            nothing is tracked. Now you can live in it.
+        </h1>
+
+        <div class="flex items-center mt-7">
+            <a href={`${hasJWT ? '/app' : '/auth'}`}>
+                <Button class="xs:text-sm mr-2 font-semibold text-md" size="lg">
+                    {hasJWT ? 'Get back online' : 'Try Fronvo online'}
+                </Button>
+            </a>
+
+            <a href="https://github.com/Fronvo" target="_blank">
+                <Button
+                    variant={'outline'}
+                    size="lg"
+                    class="xs:text-sm ml-2 font-semibold text-md"
+                >
+                    <GithubLogo class="xs:text-sm mr-2 w-[20px] h-[20px]" />
+                    View on Github
+                </Button>
+            </a>
+        </div>
     </div>
 {/if}

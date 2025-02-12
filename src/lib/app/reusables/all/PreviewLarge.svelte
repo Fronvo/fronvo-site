@@ -6,41 +6,93 @@
     import LargeBio from '../profile/large/LargeBio.svelte';
     import LargeSince from '../profile/large/LargeSince.svelte';
     import { ourData } from 'stores/profile';
-    import { isMobile } from 'stores/main';
     import LargeConnections from '../profile/large/LargeConnections.svelte';
+    import { targetProfileModal } from 'stores/modals';
+    import LargeListening from '../profile/large/LargeListening.svelte';
 
     export let profileData: FronvoAccount;
+    export let editable = false;
+
+    let username = $targetProfileModal.username || $ourData.username;
+    let bio = $targetProfileModal.id ? $targetProfileModal.bio : $ourData.bio;
+
+    async function uploadData(): Promise<void> {
+        return new Promise((resolve) => {
+            const updatedData = {};
+
+            if ($ourData.username != username && username.trim().length > 0) {
+                updatedData['username'] = username.trim();
+            }
+
+            if ($ourData.bio != bio) {
+                updatedData['bio'] = bio.replaceAll('\n\n', '').trim();
+            }
+
+            if (Object.keys(updatedData).length === 0) {
+                resolve();
+                return;
+            }
+
+            // socket.emit('updateProfileData', updatedData, async ({ err }) => {
+            //     if (err) {
+            //         resolve();
+
+            //         return;
+            //     }
+
+            //     $ourData = {
+            //         ...$ourData,
+            //         ...updatedData,
+            //     };
+
+            //     resolve();
+            // });
+        });
+    }
+
+    function revertData(): void {
+        profileData = $ourData;
+        username = $ourData.username;
+        bio = $ourData.bio;
+    }
 </script>
 
-<div class={`profile-container ${$isMobile ? 'mobile' : ''}`}>
-    <LargeBanner />
-    <LargeAvatar
-        avatar={profileData?.avatar}
-        online={profileData.online}
-        isSelf={$ourData.profileId == profileData.profileId}
-        isFriend={$ourData.friends.includes(profileData.profileId)}
-    />
+<LargeBanner />
+<LargeAvatar
+    avatar={profileData?.avatar}
+    online={profileData.online}
+    isSelf={$ourData.id === profileData.id}
+    isFriend={$ourData.friends.includes(profileData.id)}
+    bind:editable
+    editableCallback={uploadData}
+    editableRevertCallback={revertData}
+/>
 
-    <div class="secondary-container">
-        <LargeIdentifier
-            profileId={profileData?.profileId}
-            username={profileData?.username}
-            status={profileData?.status}
-        />
+<div class="rounded-md mb-1">
+    <LargeIdentifier profileId={profileData?.id} bind:username {editable} />
 
-        {#if profileData?.bio}
-            <span class="seperator" />
+    {#if profileData.currentTrack}
+        <div
+            class="bg-secondary/20 p-4 pt-3 pb-3 rounded-md border-accent border-[1px] mb-3"
+        >
+            <LargeListening track={profileData.currentTrack} />
+        </div>
+    {/if}
 
-            <LargeBio bio={profileData?.bio} />
+    <div class="bg-secondary/20 p-4 rounded-md border-accent border-[1px]">
+        {#if profileData?.bio || editable}
+            <LargeBio bind:bio {editable} />
+
+            <div class="mb-4" />
         {/if}
 
-        <span class="seperator" />
+        <LargeSince since={profileData?.created_at} />
+    </div>
 
-        <LargeSince since={profileData?.creationDate} />
-
-        {#if profileData.hasSpotify || profileData.hasGithub}
-            <span class="seperator" />
-
+    {#if profileData.hasSpotify || profileData.hasGithub || editable}
+        <div
+            class="bg-secondary/20 p-4 pt-3 pb-3 rounded-md border-accent border-[1px] mt-3"
+        >
             <LargeConnections
                 spotify={{
                     hasSpotify: profileData.hasSpotify,
@@ -52,43 +104,8 @@
                     githubName: profileData.githubName,
                     githubUrl: profileData.githubURL,
                 }}
+                {editable}
             />
-        {/if}
-    </div>
+        </div>
+    {/if}
 </div>
-
-<style>
-    .profile-container {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        background: var(--primary);
-        backdrop-filter: blur(10px);
-    }
-
-    .secondary-container {
-        width: 95%;
-        display: flex;
-        flex-direction: column;
-        transform: translateY(-60px);
-        background: rgb(100, 100, 100, 0.1);
-        border-radius: 10px;
-        padding-top: 10px;
-        padding-bottom: 20px;
-    }
-
-    .seperator {
-        margin: auto;
-        width: 100%;
-        height: 2px;
-        margin-top: 20px;
-        margin-bottom: 20px;
-    }
-
-    @media screen and (max-width: 850px) {
-        .mobile .secondary-container {
-            transform: translateY(-40px);
-        }
-    }
-</style>

@@ -1,6 +1,4 @@
 <script lang="ts">
-    import Dropdown from './Dropdown.svelte';
-    import Modal from './Modal.svelte';
     import { scale } from 'svelte/transition';
     import MessagesList from '../reusables/side/MessagesList.svelte';
     import {
@@ -10,9 +8,7 @@
         isInServer,
         mobileShowMembers,
     } from 'stores/rooms';
-    import { isMobile } from 'stores/main';
-    import { onMount } from 'svelte';
-    import { Toaster } from 'svelte-sonner';
+    import { disconnected, isMobile } from 'stores/main';
     import HomeButton from '../reusables/top/HomeButton.svelte';
     import CreateServerButton from '../reusables/side/CreateServerButton.svelte';
     import SecondaryOptions from '../reusables/top/SecondaryOptions.svelte';
@@ -27,109 +23,39 @@
     import Dashboard from './dashboard/Dashboard.svelte';
     import JoinServerButton from '../reusables/side/JoinServerButton.svelte';
     import RoomTyping from './rooms/RoomTyping.svelte';
-    import ToggleThemeButton from '../reusables/side/ToggleThemeButton.svelte';
     import SecondaryOptionsMobile from '../reusables/top/SecondaryOptionsMobile.svelte';
-
-    let ParticlesComponent;
-
-    onMount(async () => {
-        const module = await import('svelte-particles');
-
-        ParticlesComponent = module.default;
-    });
-
-    let particlesConfig = {
-        particles: {
-            color: { value: '#fff' },
-
-            move: {
-                direction: 'bottom',
-                enable: true,
-                outModes: 'out',
-                speed: 2,
-            },
-
-            number: {
-                density: {
-                    enable: true,
-                    area: 800,
-                },
-                value: 400,
-            },
-
-            opacity: {
-                value: 0.7,
-            },
-
-            shape: {
-                type: 'circle',
-            },
-
-            size: {
-                value: 10,
-            },
-
-            wobble: {
-                enable: true,
-                distance: 10,
-                speed: 10,
-            },
-
-            zIndex: {
-                value: { min: 1, max: 100 },
-            },
-        },
-    };
-
-    let onParticlesLoaded = (event) => {
-        const particlesContainer = event.detail.particles;
-    };
-
-    let particlesInit = async (engine) => {};
+    import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+    import Sonner from '$lib/components/ui/sonner/sonner.svelte';
+    import DisconnectedButton from '../reusables/side/DisconnectedButton.svelte';
 </script>
 
-{#if new Date().getMonth() == 11}
-    <svelte:component
-        this={ParticlesComponent}
-        id="tsparticles"
-        options={particlesConfig}
-        on:particlesLoaded={onParticlesLoaded}
-        {particlesInit}
-    />
-{/if}
-
-<Dropdown />
-
-<Modal />
-
-<Toaster
-    theme={'dark'}
-    duration={2500}
-    richColors
-    visibleToasts={5}
-    toastOptions={{
-        style: 'background: var(--bg); color: var(--text); border-color: var(--primary); border-radius: 10px; font-family: Manrope; font-size: 0.925rem;',
-    }}
-    offset={'25px'}
-/>
+<Sonner />
 
 <div
-    class={`main-container ${$isMobile ? 'mobile' : ''}`}
+    class={`flex overflow-hidden ${$isMobile ? 'min-w-none' : ''}`}
     in:scale={{ duration: 750, easing: quintInOut, opacity: 0, start: 1.25 }}
 >
     {#if !$mobileShowMembers}
         {#if !$isMobile}
-            <div class="first-container">
+            <div
+                class="[&::-webkit-scrollbar]:hidden w-[64px] min-w-[64px] h-screen flex flex-col items-center z-10 overflow-x-hidden overflow-y-auto pb-[10px]"
+            >
                 <HomeButton />
                 <ServersList />
                 <CreateServerButton />
                 <JoinServerButton />
-                <ToggleThemeButton />
+                <ThemeToggle useButton />
+
+                {#if $disconnected}
+                    <DisconnectedButton />
+                {/if}
             </div>
 
-            <div class="second-container">
+            <div class="h-screen min-w-[235px] flex flex-col items-center z-10">
                 {#if !$isInServer}
-                    <div class="wrapper">
+                    <div
+                        class="[&::-webkit-scrollbar]:hidden w-[235px] h-screen overflow-x-hidden border-l border-r pr-2 pl-2"
+                    >
                         <SecondaryOptions />
 
                         <MessagesList />
@@ -142,7 +68,7 @@
             <SecondaryOptionsMobile />
         {/if}
 
-        <div class="third-container">
+        <div class="third-containe flex flex-col items-center w-full h-screen">
             {#if !$isMobile}
                 {#if $currentRoomLoaded || $isInServer}
                     {#if $currentRoomData || $currentChannel}
@@ -171,7 +97,7 @@
         </div>
 
         {#if !$isMobile}
-            <div class="fourth-container">
+            <div class="fourth-containe flex flex-col z-1">
                 {#if $isInServer}
                     <RoomMembers />
                 {:else}
@@ -183,74 +109,3 @@
         <RoomMembers />
     {/if}
 </div>
-
-<style>
-    .main-container {
-        display: flex;
-        flex-direction: row;
-        min-width: 955px;
-        z-index: 1;
-        overflow: hidden;
-    }
-
-    .mobile {
-        min-width: 0;
-    }
-
-    .first-container {
-        width: 64px;
-        min-width: 64px;
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        overflow-x: hidden;
-        overflow-y: scroll;
-        padding-bottom: 10px;
-        border-right: 1px solid var(--primary);
-    }
-
-    .first-container::-webkit-scrollbar {
-        display: none;
-    }
-
-    .second-container {
-        height: calc(100vh);
-        min-width: 235px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        z-index: 1;
-        background: var(--primary);
-    }
-
-    .wrapper {
-        width: 235px;
-        height: calc(100vh);
-        overflow-y: scroll;
-        overflow-x: hidden;
-    }
-
-    .wrapper::-webkit-scrollbar-thumb {
-        background: transparent;
-    }
-
-    .wrapper:hover.wrapper::-webkit-scrollbar-thumb {
-        background: var(--primary);
-    }
-
-    .third-container {
-        width: 100%;
-        height: calc(100vh);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .fourth-container {
-        z-index: 1;
-        display: flex;
-        flex-direction: column;
-        background: var(--primary);
-    }
-</style>

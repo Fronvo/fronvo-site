@@ -1,5 +1,7 @@
 import queryString from 'querystring';
 import { json } from '@sveltejs/kit';
+import { SPOTIFY_CLIENT_SECRET } from '$env/static/private';
+import { PUBLIC_SPOTIFY_CLIENT_ID } from '$env/static/public';
 
 /** @type {import('./$types').PageLoad} */
 export async function POST({ url }) {
@@ -14,9 +16,7 @@ export async function POST({ url }) {
         headers: {
             'content-type': 'application/x-www-form-urlencoded',
             Authorization: `Basic ${btoa(
-                `${import.meta.env.VITE_SPOTIFY_CLIENT_ID}:${
-                    import.meta.env.VITE_SPOTIFY_CLIENT_SECRET
-                }`
+                `${PUBLIC_SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`
             )}`,
         },
     });

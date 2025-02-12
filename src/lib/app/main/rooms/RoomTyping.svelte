@@ -1,6 +1,6 @@
 <script lang="ts">
     import type { FronvoAccount } from 'interfaces/all';
-    import { cachedAccountData, socket } from 'stores/main';
+    import { cachedAccountData } from 'stores/main';
     import { ourData } from 'stores/profile';
     import {
         currentChannel,
@@ -25,79 +25,83 @@
 
                 typingSent = false;
 
-                socket.emit('finishTyping', {
-                    serverId: $currentServer?.serverId,
-                    roomId: $currentChannel?.channelId || $currentRoomId,
-                });
+                // socket.emit('finishTyping', {
+                //     serverId: $currentServer?.serverId,
+                //     roomId: $currentChannel?.channelId || $currentRoomId,
+                // });
             } else {
                 if (typingSent) return;
 
                 typingSent = true;
 
-                socket.emit('startTyping', {
-                    serverId: $currentServer?.serverId,
-                    roomId: $currentChannel?.channelId || $currentRoomId,
-                });
+                // socket.emit('startTyping', {
+                //     serverId: $currentServer?.serverId,
+                //     roomId: $currentChannel?.channelId || $currentRoomId,
+                // });
             }
         });
     });
 
-    socket.on('typingStarted', async ({ roomId, profileId }) => {
-        if (tempTyping.includes(profileId)) return;
+    // socket.on('typingStarted', async ({ roomId, profileId }) => {
+    //     if (tempTyping.includes(profileId)) return;
 
-        tempTyping.push(profileId);
+    //     tempTyping.push(profileId);
 
-        if (roomId == ($currentChannel?.channelId || $currentRoomId)) {
-            if (profileId == $ourData.profileId) return;
+    //     if (roomId == ($currentChannel?.channelId || $currentRoomId)) {
+    //         if (profileId == $ourData.id) return;
 
-            $typing.push(
-                await findCachedAccount(profileId, $cachedAccountData)
-            );
+    //         $typing.push(
+    //             await findCachedAccount(profileId, $cachedAccountData),
+    //         );
 
-            $typing = $typing;
-        }
-    });
+    //         $typing = $typing;
+    //     }
+    // });
 
-    socket.on('typingEnded', async ({ roomId, profileId }) => {
-        if (roomId == ($currentChannel?.channelId || $currentRoomId)) {
-            if (profileId == $ourData.profileId) return;
+    // socket.on('typingEnded', async ({ roomId, profileId }) => {
+    //     if (roomId == ($currentChannel?.channelId || $currentRoomId)) {
+    //         if (profileId == $ourData.id) return;
 
-            const account = await findCachedAccount(
-                profileId,
-                $cachedAccountData
-            );
+    //         const account = await findCachedAccount(
+    //             profileId,
+    //             $cachedAccountData,
+    //         );
 
-            // Might have missed the start event
-            if ($typing.includes(account)) {
-                $typing.splice($typing.indexOf(account), 1);
-                $typing = $typing;
+    //         // Might have missed the start event
+    //         if ($typing.includes(account)) {
+    //             $typing.splice($typing.indexOf(account), 1);
+    //             $typing = $typing;
 
-                tempTyping.splice(tempTyping.indexOf(profileId), 1);
-            }
-        }
-    });
+    //             tempTyping.splice(tempTyping.indexOf(profileId), 1);
+    //         }
+    //     }
+    // });
 
     onDestroy(() => unsubscribe());
 </script>
 
-<div class={`typing-container ${$typing.length > 0 ? 'show' : ''}`}>
-    <span id="dot-1" />
-    <span id="dot-2" />
-    <span id="dot-3" />
-
-    <div class="info">
+<div
+    class="flex w-full ml-10 items-center translate-y-[-6px] opacity-0"
+    class:opacity-100={$typing.length > 0}
+>
+    <div class="flex items-center">
         {#each $typing as { profileId, username, avatar }, i}
             <!-- Up to 4 avatars -->
             {#if i < 3}
                 <img
                     src={avatar
                         ? `${avatar}/tr:w-32:h-32`
-                        : '/images/avatar.png'}
+                        : '/images/avatar.svg'}
                     draggable={false}
                     alt={`${profileId}\'s avatar'`}
+                    class={`${
+                        !avatar &&
+                        'bg-primary border-accent border-[1px] p-[2px]'
+                    } w-[16px] h-[16px] rounded-full mr-1`}
+                    class:ml-1={i !== 0}
                 />
 
-                <h1>
+                <h1 class="text-xs font-medium">
                     {username}{$typing.length > 1 && i != $typing.length - 1
                         ? ','
                         : ''}
@@ -106,83 +110,7 @@
         {/each}
     </div>
 
-    <h1 id="final">
-        {$typing.length > 3 ? 'and more' : ''} typing...
+    <h1 class="text-xs ml-[2.5px]">
+        {$typing.length !== 1 ? 'are' : 'is'} typing...
     </h1>
 </div>
-
-<style>
-    .typing-container {
-        width: 97.5%;
-        height: 10px;
-        display: flex;
-        align-items: center;
-        margin-left: 10px;
-        user-select: none;
-        transform: translateY(-5px);
-        opacity: 0;
-    }
-
-    .show {
-        opacity: 1;
-    }
-
-    span {
-        width: 6px;
-        height: 6px;
-        background: var(--primary);
-        border-radius: 100px;
-        margin-right: 2px;
-        animation-name: glowing;
-        animation-duration: 1000ms;
-        animation-iteration-count: infinite;
-        animation-direction: alternate-reverse;
-    }
-
-    #dot-1 {
-        animation-delay: 0;
-    }
-
-    #dot-2 {
-        animation-delay: 150ms;
-    }
-
-    #dot-3 {
-        animation-delay: 300ms;
-        margin-right: 5px;
-    }
-
-    .typing-container .info {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-    }
-
-    .typing-container .info img {
-        width: 16px;
-        height: 16px;
-        border-radius: 30px;
-        margin-right: 2px;
-    }
-
-    .typing-container .info h1 {
-        margin: 0;
-        font-size: 0.9rem;
-        margin-right: 3px;
-        margin-bottom: 2px;
-        color: var(--text);
-    }
-
-    .typing-container #final {
-        margin: 0;
-        font-size: 0.9rem;
-        margin-bottom: 2px;
-    }
-
-    @keyframes glowing {
-        100% {
-            background: var(--gray);
-            transform: scale(1.05);
-        }
-    }
-</style>

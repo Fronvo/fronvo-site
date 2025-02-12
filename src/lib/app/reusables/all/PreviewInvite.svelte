@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { isMobile, socket } from 'stores/main';
+    import Button from '$lib/components/ui/button/button.svelte';
     import { dmsList } from 'stores/rooms';
     import { findAccountDMId } from 'utilities/rooms';
 
@@ -7,6 +7,7 @@
     export let profileId: string;
     export let invite: string;
     export let isInServer: boolean;
+    export let isBanned: boolean;
 
     let invited = false;
 
@@ -15,128 +16,45 @@
 
         invited = true;
 
-        socket.emit('sendMessage', {
-            roomId: await findAccountDMId(profileId, $dmsList),
-            message: `/invite/${invite}`,
-        });
+        // // TODO: V3 server invite type message
+        // socket.emit('sendMessage', {
+        //     roomId: await findAccountDMId(profileId, $dmsList),
+        //     message: `/invite/${invite}`,
+        // });
     }
 </script>
 
-<div
-    class={`invite-container ${isInServer ? 'hide' : ''} ${
-        $isMobile ? 'mobile' : ''
-    }`}
->
+<div class="flex items-center mb-3 w-[95%] m-auto">
     <img
-        id="avatar"
-        src={avatar ? avatar : '/images/avatar.png'}
+        src={avatar ? `${avatar}/tr:w-56:h-56` : '/images/avatar.svg'}
         alt={`${profileId}'s avatar`}
         draggable={false}
+        class={`${
+            !avatar && 'bg-primary border-accent border-[1px] p-[3px]'
+        } w-[28px] h-[28px] mr-2 rounded-full`}
     />
 
-    <div class="bottom-container">
-        <h1 id="username">{profileId}</h1>
-    </div>
+    <h1 class="text-sm font-medium max-w-[200px] overflow-hidden text-ellipsis">
+        {profileId}
+    </h1>
 
-    <button disabled={invited} id="invite" on:click={inviteFriend}
-        >{invited ? 'Invite sent' : 'Send invite'}</button
+    <span class="flex-1" />
+
+    <Button
+        size="sm"
+        disabled={invited || isBanned || isInServer}
+        id="invite"
+        on:click={inviteFriend}
+        variant={`${isBanned ? 'destructive' : 'default'}`}
     >
+        {#if isInServer}
+            Already in server
+        {:else if isBanned}
+            Banned
+        {:else if invited}
+            Invite sent
+        {:else}
+            Invite
+        {/if}
+    </Button>
 </div>
-
-<style>
-    .invite-container {
-        display: flex;
-        flex-direction: row;
-        justify-content: start;
-        align-items: center;
-        background: transparent;
-        cursor: default;
-        width: 75%;
-        padding: 8px;
-    }
-
-    .hide {
-        display: none;
-    }
-
-    div h1 {
-        margin: 0;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-    }
-
-    button {
-        font-size: 1rem;
-        box-shadow: none;
-        transition: 125ms;
-        background: transparent;
-        font-weight: 600;
-    }
-
-    #invite {
-        color: white;
-        margin-right: 10px;
-        background: rgb(125, 125, 125, 0.15);
-    }
-
-    #invite:hover {
-        background: rgb(125, 125, 125, 0.3);
-    }
-
-    #invite:disabled {
-        cursor: not-allowed;
-        opacity: 0.5;
-    }
-
-    #invite:disabled:hover {
-        background: var(--primary);
-    }
-
-    #avatar {
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-        width: 36px;
-        height: 36px;
-        border-radius: 30px;
-        margin-right: 8px;
-        cursor: default;
-    }
-
-    .bottom-container {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-    }
-
-    #username {
-        display: -webkit-box;
-        overflow: hidden;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        font-size: 1.1rem;
-        text-align: start;
-        color: white;
-    }
-
-    @media screen and (max-width: 850px) {
-        .mobile {
-            width: 85%;
-        }
-
-        .mobile #invite {
-            font-size: 0.8rem;
-        }
-
-        .mobile #username {
-            font-size: 0.9rem;
-        }
-    }
-</style>

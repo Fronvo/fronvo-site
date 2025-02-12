@@ -1,6 +1,7 @@
 <script lang="ts">
     import { ourData } from 'stores/profile';
     import {
+        canMessage,
         currentChannel,
         currentRoomData,
         currentRoomId,
@@ -16,58 +17,72 @@
     } from 'stores/rooms';
     import { onDestroy, onMount } from 'svelte';
     import { sendImage, sendMessage } from 'utilities/rooms';
-    import { isMobile, socket } from 'stores/main';
-    import { isAcceptedImage, showDropdown, showModal } from 'utilities/main';
-    import { slide } from 'svelte/transition';
-    import {
-        ModalTypes,
-        sendImageTargetFile,
-        targetImageModal,
-        targetTenorCallback,
-    } from 'stores/modals';
+    import { disconnected } from 'stores/main';
+    import { isAcceptedImage } from 'utilities/main';
     import { toast } from 'svelte-sonner';
-    import { sineInOut } from 'svelte/easing';
     import type { Unsubscriber } from 'svelte/motion';
-    import { DropdownTypes } from 'stores/dropdowns';
+    import { Cross1, PaperPlane } from 'radix-icons-svelte';
+    import Textarea from '$lib/components/ui/textarea/textarea.svelte';
+    import Button from '$lib/components/ui/button/button.svelte';
+    import { Sheet, SheetClose } from '$lib/components/ui/sheet';
+    import SheetContent from '$lib/components/ui/sheet/sheet-content.svelte';
+    import {
+        DropdownMenu,
+        DropdownMenuContent,
+        DropdownMenuTrigger,
+    } from '$lib/components/ui/dropdown-menu';
+    import Input from '$lib/components/ui/input/input.svelte';
+    import { TenorGifs } from 'interfaces/all';
+    import PropFavorite from '$lib/app/reusables/rooms/PropFavorite.svelte';
+    import { fade } from 'svelte/transition';
+    import { flyAndScaleImmediate } from '$lib/utils';
 
-    let content: HTMLTextAreaElement;
+    let content: Textarea;
     let unsubscribe: Unsubscriber;
     let unsubscribe2: Unsubscriber;
     let unsubscribe3: Unsubscriber;
 
-    let canMessage: boolean;
     let cantMessageReason: string;
+
+    let open = false;
+    let imageSrc: string;
+    let sending = false;
+
+    let gifsOpen = false;
+    let gifSearch = '';
+    let gifsP: TenorGifs[] = [];
+    let showEmptyGifs = true;
 
     function adjustCanMessage(): void {
         if (!$isInServer) {
             if (!$currentRoomData.dmUser.username) {
-                canMessage = false;
+                $canMessage = false;
                 cantMessageReason = 'This user has been deleted';
-            } else if (
-                !$ourData.friends.includes($currentRoomData.dmUser.profileId)
-            ) {
-                canMessage = false;
-                cantMessageReason = "This user isn't your friend anymore";
+            } else if (!$ourData.friends.includes($currentRoomData.dmUser.id)) {
+                $canMessage = false;
+                cantMessageReason = 'This user is not your friend.';
             } else {
-                canMessage = true;
+                $canMessage = true;
+                cantMessageReason = '';
             }
         } else {
-            canMessage = true;
+            $canMessage = true;
+            cantMessageReason = '';
         }
 
-        if (canMessage) {
+        if ($canMessage) {
             if ($sendingImage) {
-                canMessage = false;
+                $canMessage = false;
                 cantMessageReason = 'Sending image...';
             } else {
-                canMessage = true;
+                $canMessage = true;
             }
         }
 
         setTimeout(() => {
             if (!content) return;
 
-            if (!canMessage) {
+            if (!$canMessage) {
                 content.placeholder = cantMessageReason;
 
                 if (!$sendingImage) {
@@ -94,27 +109,44 @@
 
     function sendMsg(): void {
         sendMessage(
-            $currentChannel?.channelId || $currentRoomId,
+            $currentChannel?.id || $currentRoomId,
             $sendContent,
             $replyingTo,
             $replyingToId,
             $currentRoomMessages,
             $pendingMessages,
             $ourData,
-            $isInServer ? $currentServer.serverId : ''
+            $isInServer ? $currentServer.id : ''
         );
+    }
+
+    function sendGIF(gif: string): void {
+        // if (!$isInServer) {
+        //     socket.emit('sendMessage', {
+        //         roomId: $currentRoomId,
+        //         message: gif,
+        //     });
+        // } else {
+        //     socket.emit('sendChannelMessage', {
+        //         serverId: $currentServer?.serverId,
+        //         channelId: $currentChannel?.channelId,
+        //         message: gif,
+        //     });
+        // }
+
+        gifsOpen = false;
     }
 
     function setupImagePasting(): void {
         setTimeout(() => {
             if (!content) return;
 
-            content.addEventListener('paste', (ev) => {
+            content.$on('paste', (ev) => {
                 if (ev.clipboardData.files.length > 0) {
                     const file = ev.clipboardData.files[0];
 
-                    if (file.size > ($ourData.isTurbo ? 3000000 : 1000000)) {
-                        toast(`Image is above ${$ourData.isTurbo ? 3 : 1}MB.`);
+                    if (file.size > 10000000) {
+                        toast(`Image is above 10MB.`);
                         return;
                     }
 
@@ -122,10 +154,9 @@
                         const reader = new FileReader();
 
                         reader.addEventListener('load', async () => {
-                            $targetImageModal = reader.result.toString();
-                            $sendImageTargetFile = file;
+                            imageSrc = reader.result.toString();
 
-                            showModal(ModalTypes.SendImage);
+                            open = true;
                         });
 
                         reader.readAsDataURL(file);
@@ -138,7 +169,7 @@
     }
 
     function openInputForImage(): void {
-        if (!canMessage) return;
+        if (!$canMessage) return;
 
         let input = document.createElement('input');
         input.type = 'file';
@@ -146,8 +177,8 @@
         input.onchange = async (_) => {
             let file = Array.from(input.files)[0];
 
-            if (file.size > ($ourData.isTurbo ? 3000000 : 1000000)) {
-                toast(`Image is above ${$ourData.isTurbo ? 3 : 1}MB.`);
+            if (file.size > 10000000) {
+                toast(`Image is above 10MB.`);
                 return;
             }
 
@@ -155,10 +186,9 @@
                 const reader = new FileReader();
 
                 reader.addEventListener('load', async () => {
-                    $targetImageModal = reader.result.toString();
-                    $sendImageTargetFile = file;
+                    imageSrc = reader.result.toString();
 
-                    showModal(ModalTypes.SendImage);
+                    open = true;
                 });
 
                 reader.readAsDataURL(file);
@@ -170,30 +200,60 @@
         input.click();
     }
 
-    function showGifPicker(): void {
-        if (!canMessage) return;
+    async function sendImageFunc(): Promise<void> {
+        sending = true;
 
-        $targetTenorCallback = (url: string) => {
-            if (!$isInServer) {
-                socket.emit('sendMessage', {
-                    roomId: $currentRoomId,
-                    message: url,
-                });
-            } else {
-                socket.emit('sendChannelMessage', {
-                    serverId: $currentServer?.serverId,
-                    channelId: $currentChannel?.channelId,
-                    message: url,
-                });
+        await sendImage(
+            $currentChannel?.id || $currentRoomId,
+            $sendingImage,
+            imageSrc,
+            $isInServer ? $currentServer.id : ''
+        );
+
+        open = false;
+
+        sending = false;
+    }
+
+    async function keydownListener(e: KeyboardEvent): Promise<void> {
+        if (e.shiftKey || e.key == 'Escape' || e.key == 'Enter') {
+            return;
+        }
+
+        let oldVal: string;
+
+        setTimeout(() => {
+            // @ts-ignore
+            oldVal = e.target.value;
+
+            if (oldVal.length == 0) {
+                showEmptyGifs = true;
+                return;
             }
-        };
 
-        showModal(ModalTypes.Gif);
+            showEmptyGifs = false;
+        }, 0);
+
+        setTimeout(() => {
+            // @ts-ignore
+            if (oldVal != e.target.value || oldVal == '') {
+                gifsP = [];
+                return;
+            }
+
+            gifsP = [];
+
+            // socket.emit('fetchTenor', { q: oldVal }, ({ gifs }) => {
+            //     if (gifs.length > 0) {
+            //         gifsP = gifs;
+            //     }
+            // });
+        }, 250);
     }
 
     onMount(() => {
-        socket.on('friendAdded', ({}) => adjustCanMessage());
-        socket.on('friendRemoved', ({}) => adjustCanMessage());
+        // socket.on('friendAdded', ({}) => adjustCanMessage());
+        // socket.on('friendRemoved', ({}) => adjustCanMessage());
 
         unsubscribe = replyingTo.subscribe((val) => {
             if (!$currentRoomId) return;
@@ -248,7 +308,8 @@
                     )
                         return;
 
-                    content && content.focus();
+                    content &&
+                        document.getElementById('textarea-content').focus();
                 }
             });
 
@@ -256,7 +317,9 @@
             $replyingToId = undefined;
 
             setTimeout(() => {
-                content.onkeyup = (ev) => {
+                if (!content) return;
+
+                content.$on('keyup', (ev) => {
                     if (ev.key == 'Enter' && !ev.shiftKey) {
                         sendMsg();
 
@@ -264,7 +327,7 @@
 
                         adjustCanMessage();
                     }
-                };
+                });
             }, 0);
         });
 
@@ -283,182 +346,194 @@
 </script>
 
 {#if $currentRoomLoaded}
-    <div class={`send-container ${$isMobile ? 'mobile' : ''}`}>
-        <div class="wrapper">
-            <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="32"
-                height="32"
-                viewBox="0 0 24 24"
-                on:click={openInputForImage}
-                on:keydown={openInputForImage}
-                fill="currentColor"
-                ><g
-                    ><path
-                        d="m19.352 7.617l-3.96-3.563c-1.127-1.015-1.69-1.523-2.383-1.788L13 5c0 2.357 0 3.536.732 4.268C14.464 10 15.643 10 18 10h3.58c-.362-.704-1.012-1.288-2.228-2.383Z"
-                    /><path
-                        fill-rule="evenodd"
-                        d="M10 22h4c3.771 0 5.657 0 6.828-1.172C22 19.657 22 17.771 22 14v-.437c0-.873 0-1.529-.043-2.063h-4.052c-1.097 0-2.067 0-2.848-.105c-.847-.114-1.694-.375-2.385-1.066c-.692-.692-.953-1.539-1.067-2.386c-.105-.781-.105-1.75-.105-2.848l.01-2.834c0-.083.007-.164.02-.244C11.121 2 10.636 2 10.03 2C6.239 2 4.343 2 3.172 3.172C2 4.343 2 6.229 2 10v4c0 3.771 0 5.657 1.172 6.828C4.343 22 6.229 22 10 22Zm-.987-9.047a.75.75 0 0 0-1.026 0l-2 1.875a.75.75 0 0 0 1.026 1.094l.737-.69V18.5a.75.75 0 0 0 1.5 0v-3.269l.737.691a.75.75 0 0 0 1.026-1.094l-2-1.875Z"
-                        clip-rule="evenodd"
-                    /></g
-                ></svg
+    <div class="flex flex-col w-full flex-1 z-[11]">
+        {#if $replyingTo}
+            <div
+                class="flex items-center mr-3 ml-3 border bg-secondary/40 rounded-t-[12px] pr-3 pl-3 pt-1 pb-1"
             >
-            {#if $replyingTo}
+                <h1 class="text-[0.8rem]">
+                    Replying to{' '}
+                    <b>
+                        {$replyingTo}
+                    </b>
+                </h1>
+
+                <span class="flex-1" />
+
+                <Button
+                    class="flex items-center mr-1 rounded-full p-1 w-[24px] h-[24px] cursor-pointer"
+                    variant="outline"
+                    size="icon"
+                    on:click={cancelReply}
+                >
+                    <Cross1 />
+                </Button>
+            </div>
+        {/if}
+
+        <div
+            class={`flex mr-3 ml-3 mb-3 pt-0.5 pb-0.5 border items-center bg-secondary/40 ${
+                $replyingTo ? 'rounded-b-[12px]' : 'rounded-xl'
+            } pr-3 pl-3`}
+        >
+            <Button
+                variant="ghost"
+                class="min-w-[32px] w-[32px] h-[32px] m-0 p-0 rounded-full duration-0"
+                on:click={openInputForImage}
+                disabled={!$canMessage || $disconnected}
+            >
                 <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="32"
                     height="32"
                     viewBox="0 0 24 24"
-                    on:click={cancelReply}
-                    on:keydown={cancelReply}
-                    fill="currentColor"
+                    class="min-w-[24px] w-[24px] h-[24px]"
                     ><path
-                        fill-rule="evenodd"
-                        d="M22 12c0 5.523-4.477 10-10 10S2 17.523 2 12S6.477 2 12 2s10 4.477 10 10ZM8.97 8.97a.75.75 0 0 1 1.06 0L12 10.94l1.97-1.97a.75.75 0 0 1 1.06 1.06L13.06 12l1.97 1.97a.75.75 0 0 1-1.06 1.06L12 13.06l-1.97 1.97a.75.75 0 0 1-1.06-1.06L10.94 12l-1.97-1.97a.75.75 0 0 1 0-1.06Z"
-                        clip-rule="evenodd"
+                        fill="currentColor"
+                        d="M17 13h-4v4h-2v-4H7v-2h4V7h2v4h4m-5-9A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2"
                     /></svg
                 >
-            {/if}
+            </Button>
 
-            <textarea
+            <Textarea
                 bind:this={content}
-                placeholder={`Message ${
-                    !$isInServer
-                        ? '@' + $currentRoomData?.dmUser.username
-                        : '#' + $currentChannel?.name
-                }`}
                 id="textarea-content"
+                autofocus
+                class="border-none bg-transparent min-h-[20px] h-[20px] max-h-[200px]"
+                placeholder={cantMessageReason ||
+                    `Message ${
+                        !$isInServer
+                            ? '@' + $currentRoomData?.dmUser.username
+                            : '#' + $currentChannel?.name
+                    }`}
                 bind:value={$sendContent}
-                maxlength={500}
-                spellcheck="true"
-                lang="en"
+                disabled={!$canMessage || $disconnected}
             />
 
-            <!-- Reenable once we fix UI -->
-            <svg
-                id="gif"
-                xmlns="http://www.w3.org/2000/svg"
-                width="32"
-                height="32"
-                viewBox="0 0 16 16"
-                fill="currentColor"
-                on:click={showGifPicker}
-                on:keydown={showGifPicker}
-                ><path
-                    d="M1 4.5A2.5 2.5 0 0 1 3.5 2h9A2.5 2.5 0 0 1 15 4.5v7a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 1 11.5zm4.052 2.206c.481-.05.853.036.986.103a.5.5 0 1 0 .447-.894c-.351-.176-.928-.267-1.537-.203c-.96.1-1.948.934-1.948 2.297c0 1.385 1.054 2.3 2.3 2.3c.58 0 1.1-.273 1.397-.553c.262-.248.303-.578.303-.783v-.964a.5.5 0 0 0-.5-.5h-.807a.5.5 0 0 0 0 1H6v.463a.426.426 0 0 1-.006.072a1.126 1.126 0 0 1-.694.264c-.731 0-1.3-.504-1.3-1.3c0-.817.567-1.251 1.052-1.302M9 6.21a.5.5 0 0 0-1 0v3.6a.5.5 0 0 0 1 0zm1.5-.5a.5.5 0 0 0-.5.5v3.6a.5.5 0 0 0 1 0V8.505l1.003-.006a.5.5 0 0 0-.006-1L11 7.506v-.797h1.5a.5.5 0 0 0 0-1z"
-                /></svg
+            <DropdownMenu
+                bind:open={gifsOpen}
+                onOpenChange={(e) => {
+                    gifsOpen = e;
+                    gifsP = [];
+                    gifSearch = '';
+                    showEmptyGifs = true;
+                }}
             >
+                <DropdownMenuTrigger disabled={!$canMessage || $disconnected}>
+                    <Button
+                        variant="ghost"
+                        class="w-[32px] h-[32px] m-0 p-0 duration-0"
+                        disabled={!$canMessage || $disconnected}
+                    >
+                        <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            width="32"
+                            height="32"
+                            viewBox="0 0 16 16"
+                            class="w-[24px] h-[24px]"
+                            ><path
+                                fill="currentColor"
+                                d="M1 4.5A2.5 2.5 0 0 1 3.5 2h9A2.5 2.5 0 0 1 15 4.5v7a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 1 11.5zm4.052 2.206c.481-.05.853.036.986.103a.5.5 0 1 0 .447-.894c-.351-.176-.928-.267-1.537-.203c-.96.1-1.948.934-1.948 2.297c0 1.385 1.054 2.3 2.3 2.3c.58 0 1.1-.273 1.397-.553c.262-.248.303-.578.303-.783v-.964a.5.5 0 0 0-.5-.5h-.807a.5.5 0 0 0 0 1H6v.463a.4.4 0 0 1-.006.072a1.13 1.13 0 0 1-.694.264c-.731 0-1.3-.504-1.3-1.3c0-.817.567-1.251 1.052-1.302M9 6.21a.5.5 0 0 0-1 0v3.6a.5.5 0 0 0 1 0zm1.5-.5a.5.5 0 0 0-.5.5v3.6a.5.5 0 0 0 1 0V8.505l1.003-.006a.5.5 0 0 0-.006-1L11 7.506v-.797h1.5a.5.5 0 0 0 0-1z"
+                            /></svg
+                        >
+                    </Button>
+                </DropdownMenuTrigger>
 
-            {#if $sendContent.trim().length > 0}
-                <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="32"
-                    height="32"
-                    viewBox="0 0 24 24"
-                    on:click={sendMsg}
-                    on:keydown={sendMsg}
-                    transition:slide={{
-                        axis: 'x',
-                        duration: 250,
-                        easing: sineInOut,
-                    }}
-                    fill="currentColor"
-                    ><g
-                        ><path
-                            d="M14.143 15.962a.5.5 0 0 1-.244.68l-9.402 4.193c-1.495.667-3.047-.814-2.306-2.202l3.152-5.904c.245-.459.245-1 0-1.458L2.191 5.367c-.74-1.388.81-2.87 2.306-2.202l3.525 1.572a2 2 0 0 1 .974.932l5.147 10.293Z"
-                        /><path
-                            d="M15.533 15.39a.5.5 0 0 0 .651.233l4.823-2.15c1.323-.59 1.323-2.355 0-2.945L12.109 6.56a.5.5 0 0 0-.651.68l4.075 8.15Z"
-                        /></g
-                    ></svg
+                <DropdownMenuContent
+                    transition={flyAndScaleImmediate}
+                    side="top"
+                    class="w-[500px] h-[460px] -translate-y-2 z-[10] -translate-x-[222px] p-0 rounded-lg"
                 >
-            {/if}
+                    <Input
+                        bind:value={gifSearch}
+                        placeholder="Search Tenor"
+                        class="text-sm font-medium border-1 p-4 bg-background rounded-t-lg rounded-b-none mr-0 ml-0"
+                        on:keydown={(e) => keydownListener(e)}
+                    />
+
+                    {#if showEmptyGifs}
+                        <div
+                            class="flex flex-col select-none mt-4 w-full h-full"
+                        >
+                            <div class="flex items-center justify-center">
+                                <svg
+                                    xmlns="http://www.w3.org/2000/svg"
+                                    width="32"
+                                    height="32"
+                                    viewBox="0 0 16 16"
+                                    class="w-[24px] h-[24px] mr-2"
+                                    ><path
+                                        fill="currentColor"
+                                        d="M1 4.5A2.5 2.5 0 0 1 3.5 2h9A2.5 2.5 0 0 1 15 4.5v7a2.5 2.5 0 0 1-2.5 2.5h-9A2.5 2.5 0 0 1 1 11.5zm4.052 2.206c.481-.05.853.036.986.103a.5.5 0 1 0 .447-.894c-.351-.176-.928-.267-1.537-.203c-.96.1-1.948.934-1.948 2.297c0 1.385 1.054 2.3 2.3 2.3c.58 0 1.1-.273 1.397-.553c.262-.248.303-.578.303-.783v-.964a.5.5 0 0 0-.5-.5h-.807a.5.5 0 0 0 0 1H6v.463a.4.4 0 0 1-.006.072a1.13 1.13 0 0 1-.694.264c-.731 0-1.3-.504-1.3-1.3c0-.817.567-1.251 1.052-1.302M9 6.21a.5.5 0 0 0-1 0v3.6a.5.5 0 0 0 1 0zm1.5-.5a.5.5 0 0 0-.5.5v3.6a.5.5 0 0 0 1 0V8.505l1.003-.006a.5.5 0 0 0-.006-1L11 7.506v-.797h1.5a.5.5 0 0 0 0-1z"
+                                    /></svg
+                                >
+
+                                <h1>Start typing to share GIFs!</h1>
+                            </div>
+
+                            <div
+                                class="flex items-center justify-center flex-wrap mt-3"
+                            >
+                                {#each { length: 6 } as _}
+                                    <PropFavorite />
+                                {/each}
+                            </div>
+
+                            <h1 class="text-xs text-center mt-8 h-full">
+                                Powered by Tenor
+                            </h1>
+                        </div>
+                    {:else}
+                        <div
+                            class="[&::-webkit-scrollbar]:bg-none [&::-webkit-scrollbar]:w-[10px] [&::-webkit-scrollbar-thumb]:bg-accent flex flex-wrap w-full max-h-[420px] items-center justify-center overflow-y-auto"
+                        >
+                            {#each gifsP as { gif_medium }, i}
+                                <img
+                                    on:click={() => sendGIF(gif_medium)}
+                                    on:keydown={() => sendGIF(gif_medium)}
+                                    in:fade={{
+                                        duration: 500,
+                                        delay:
+                                            i < 6
+                                                ? Math.min(2000, i + i * 75)
+                                                : 0,
+                                    }}
+                                    src={gif_medium}
+                                    alt="Tenor GIF"
+                                    draggable={false}
+                                    class="w-[50%] max-h-[200px] h-max rounded-md mb-2 hover:opacity-75 border-[3px] cursor-pointer border-transparent"
+                                />
+                            {/each}
+                        </div>
+                    {/if}
+                </DropdownMenuContent>
+            </DropdownMenu>
         </div>
     </div>
 {/if}
 
-<style>
-    .send-container {
-        position: sticky;
-        background: transparent;
-        display: flex;
-        flex-direction: column;
-        width: 97.5%;
-        max-width: 100%;
-        align-items: center;
-        justify-content: end;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-        height: 42px;
-        margin: 10px;
-        margin-top: 0;
-        padding-left: 10px;
-        padding-right: 10px;
-        border-radius: 7px;
-        background: var(--primary);
-    }
+<Sheet bind:open onOpenChange={(e) => (open = e)}>
+    <SheetContent
+        side="bottom"
+        class="w-max min-w-none m-auto border-accent border-[1px] rounded-t-xl pr-10 pl-10"
+    >
+        <img
+            src={imageSrc}
+            alt="Icon"
+            class="max-h-[80vh] rounded-xl object-cover m-auto mt-2"
+        />
 
-    .mobile {
-        transform: translateY(-50px);
-    }
+        <div class="flex gap-x-2 flex-1 mt-4">
+            <SheetClose disabled={sending}
+                ><Button variant="outline" disabled={sending}>Close</Button
+                ></SheetClose
+            >
 
-    .wrapper {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 64px;
-    }
+            <span class="flex-1" />
 
-    textarea {
-        background: transparent;
-        font-size: 1rem;
-        margin-top: 2px;
-        height: 34px;
-        flex: 1;
-        font-weight: 500;
-        color: var(--text);
-    }
-
-    .mobile textarea {
-        font-size: 0.9rem;
-    }
-
-    textarea::placeholder {
-        color: var(--gray);
-        opacity: 0.5;
-        transform: translateY(-1px);
-    }
-
-    textarea:disabled {
-        background: transparent;
-    }
-
-    svg {
-        width: 34px;
-        height: 34px;
-        padding: 5px;
-        margin-right: 5px;
-        border-radius: 15px;
-        fill: var(--gray);
-    }
-
-    svg:hover {
-        fill: var(--text);
-    }
-
-    @media screen and (max-width: 850px) {
-        .mobile textarea {
-            font-size: 0.8rem;
-            transform: translateY(2px);
-        }
-
-        .mobile svg {
-            width: 32px;
-            height: 32px;
-        }
-    }
-</style>
+            <Button disabled={sending} on:click={sendImageFunc}
+                >Send image <PaperPlane class="ml-2" /></Button
+            >
+        </div>
+    </SheetContent>
+</Sheet>

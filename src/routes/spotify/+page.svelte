@@ -1,9 +1,9 @@
 <script lang="ts">
     import { page } from '$app/stores';
+    import Cookies from 'js-cookie';
     import { indexVisible } from 'stores/index';
     import { showLayout } from 'stores/main';
     import { onMount } from 'svelte';
-    import { getKey } from 'utilities/global';
 
     let authenticated = false;
     let errored = false;
@@ -20,7 +20,7 @@
         const res = await fetch('/api/spotify', {
             method: 'POST',
             body: JSON.stringify({
-                token: getKey('token'),
+                token: Cookies.get('refreshToken'),
                 code: $page.url.searchParams.get('code'),
             }),
         });

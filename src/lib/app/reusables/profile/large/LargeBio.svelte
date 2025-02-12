@@ -1,57 +1,36 @@
 <script lang="ts">
+    import Textarea from '$lib/components/ui/textarea/textarea.svelte';
     import linkifyHtml from 'linkify-html';
-    import { isMobile } from 'stores/main';
 
     export let bio: string;
+    export let editable = false;
 </script>
 
-{#if bio}
-    <div class={`since-container ${$isMobile ? 'mobile' : ''}`}>
-        <h1 id="top">About me</h1>
+{#if bio || editable}
+    <h1 class="text-xs font-bold select-none">Bio</h1>
 
-        <h1 id="bio">
+    {#if !editable}
+        <h1
+            class="text-xs mt-1 max-w-[425px] overflow-hidden text-ellipsis whitespace-pre-wrap"
+        >
             {@html linkifyHtml(bio, {
                 attributes: {
-                    class: 'link',
+                    class: 'text-link font-medium hover:underline no-underline',
                     target: '_blank',
                 },
             })}
         </h1>
-    </div>
+    {:else}
+        <Textarea
+            class="text-xs mt-1 max-w-[425px] pb-6 max-h-[150px] overflow-hidden text-ellipsis whitespace-pre-wrap pr-1.5 pl-1.5"
+            bind:value={bio}
+            maxlength={128}
+        />
+
+        <h1
+            class="text-[0.7rem] fixed w-full text-right translate-x-[-95px] translate-y-[-22px] select-none"
+        >
+            {bio.length} / 128
+        </h1>
+    {/if}
 {/if}
-
-<style>
-    .since-container {
-        display: flex;
-        flex-direction: column;
-        align-items: start;
-        margin-left: 20px;
-    }
-
-    .since-container #top {
-        margin: 0;
-        font-size: 0.9rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        margin-bottom: 3px;
-        color: var(--text);
-    }
-
-    .since-container #bio {
-        margin: 0;
-        font-size: 0.85rem;
-        white-space: pre-wrap;
-        color: var(--text);
-        font-weight: 500;
-    }
-
-    @media screen and (max-width: 850px) {
-        .mobile #top {
-            font-size: 0.7rem;
-        }
-
-        .mobile #bio {
-            font-size: 0.75rem;
-        }
-    }
-</style>

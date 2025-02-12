@@ -1,51 +1,76 @@
 <script lang="ts">
-    import { initSecondarySocket, showModal } from 'utilities/main';
-    import ModalTemplate from '../ModalTemplate.svelte';
-    import { ModalTypes, type ModalData } from 'stores/modals';
+    import { addingAccount, switchingAccounts } from 'stores/modals';
     import ProfilePreviewSwitch from '$lib/app/reusables/all/PreviewSwitch.svelte';
     import type { SwitchedAccount } from 'interfaces/all';
     import { getKey } from 'utilities/global';
-    import { currentToken, setSecondarySocket } from 'stores/main';
-    import { onDestroy, onMount } from 'svelte';
     import { ourData } from 'stores/profile';
+    import {
+        Dialog,
+        DialogClose,
+        DialogContent,
+        DialogDescription,
+        DialogTitle,
+    } from '$lib/components/ui/dialog';
+    import Button from '$lib/components/ui/button/button.svelte';
+    import Cookies from 'js-cookie';
 
-    let savedAccounts: SwitchedAccount[] = JSON.parse(
-        getKey('savedAccounts', '[]')
-    );
+    let savedAccounts: SwitchedAccount[];
 
     function addAccount(): void {
-        showModal(ModalTypes.AddAccount);
+        $switchingAccounts = false;
+
+        $addingAccount = true;
     }
 
-    onMount(() => {
-        initSecondarySocket();
-    });
+    function refreshSavedAccounts(): void {
+        savedAccounts = [];
 
-    onDestroy(() => {
-        setSecondarySocket(undefined);
-    });
+        savedAccounts = JSON.parse(getKey('savedAccounts', '[]'));
+    }
 
-    const data: ModalData = {
-        title: 'Switch accounts',
-        actions: [
-            {
-                title: 'Add account',
-                callback: addAccount,
-            },
-        ],
-    };
+    switchingAccounts.subscribe((state) => {
+        if (state) {
+            refreshSavedAccounts();
+        }
+    });
 </script>
 
-<ModalTemplate {data}>
-    {#if savedAccounts.length == 0}
-        <ProfilePreviewSwitch
-            avatar={$ourData.avatar}
-            profileId={$ourData.profileId}
-            token={$currentToken}
-        />
-    {:else}
-        {#each savedAccounts as { avatar, profileId, token }}
-            <ProfilePreviewSwitch {avatar} {profileId} {token} />
-        {/each}
-    {/if}
-</ModalTemplate>
+<Dialog
+    open={$switchingAccounts}
+    onOpenChange={(e) => ($switchingAccounts = e)}
+>
+    <DialogContent>
+        <DialogTitle>Switch accounts</DialogTitle>
+        <DialogDescription
+            >Easily switch between your saved accounts on Fronvo</DialogDescription
+        >
+        {#if savedAccounts}
+            <div class="flex flex-col gap-y-3">
+                {#if savedAccounts.length == 0}
+                    <ProfilePreviewSwitch
+                        avatar={$ourData.avatar}
+                        profileId={$ourData.id}
+                        refreshToken={Cookies.get('refreshToken')}
+                    />
+                {:else}
+                    {#each savedAccounts as { avatar, profileId, refreshToken }}
+                        <ProfilePreviewSwitch
+                            {avatar}
+                            {profileId}
+                            {refreshToken}
+                            removeCallback={refreshSavedAccounts}
+                        />
+                    {/each}
+                {/if}
+            </div>
+        {/if}
+
+        <div class="flex items-center">
+            <DialogClose><Button variant="outline">Close</Button></DialogClose>
+
+            <span class="flex-1" />
+
+            <Button on:click={addAccount}>Add account</Button>
+        </div>
+    </DialogContent>
+</Dialog>

@@ -1,14 +1,14 @@
-import type { FronvoAccount } from 'interfaces/all';
+import type { FronvoAccount, OurAccount } from 'interfaces/all';
 import { ourData } from 'stores/profile';
 import { fetchUser, updateCachedAccount } from './main';
 
 export async function loadProfile(
     cachedData: FronvoAccount[]
 ): Promise<FronvoAccount> {
-    const tempOurData = await fetchUser();
+    const tempOurData = (await fetchUser()) as OurAccount;
 
     // Force default value, we just want to cache our profile
-    await updateCachedAccount(tempOurData.profileId, cachedData, tempOurData);
+    await updateCachedAccount(tempOurData.id, cachedData, tempOurData);
 
     ourData.set(tempOurData);
 
@@ -19,7 +19,7 @@ export async function loadProfile(
 }
 
 export async function loadFriends(
-    ourData: FronvoAccount,
+    ourData: OurAccount,
     cachedData: FronvoAccount[]
 ): Promise<void> {
     return new Promise(async (resolve) => {
@@ -50,11 +50,11 @@ export async function loadFriends(
 }
 
 export async function loadPendingFriends(
-    ourData: FronvoAccount,
+    ourData: OurAccount,
     cachedData: FronvoAccount[]
 ): Promise<void> {
     return new Promise(async (resolve) => {
-        if (ourData.pendingFriendRequests.length == 0) {
+        if (ourData.pending_friend_requests.length == 0) {
             resolve();
             return;
         }
@@ -62,20 +62,20 @@ export async function loadPendingFriends(
         const finishedReqs = [];
 
         // Same as above
-        for (const pendingFriendIndex in ourData.pendingFriendRequests) {
+        for (const pendingFriendIndex in ourData.pending_friend_requests) {
             updateCachedAccount(
-                ourData.pendingFriendRequests[pendingFriendIndex],
+                ourData.pending_friend_requests[pendingFriendIndex],
                 cachedData
             ).then(() => {
                 finishedReqs.push(
-                    ourData.pendingFriendRequests[pendingFriendIndex]
+                    ourData.pending_friend_requests[pendingFriendIndex]
                 );
                 checkLoadingDone();
             });
         }
 
         function checkLoadingDone() {
-            if (finishedReqs.length == ourData.pendingFriendRequests.length) {
+            if (finishedReqs.length == ourData.pending_friend_requests.length) {
                 resolve();
             }
         }

@@ -1,79 +1,19 @@
-<script lang="ts">
-    import { isMobile } from 'stores/main';
-
-    export let opacity: number;
+<script>
+    import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
 </script>
 
-<div
-    class={`prop-container ${$isMobile ? 'mobile' : ''}`}
-    style={`opacity: ${opacity}`}
->
-    <div class="top">
-        <span id="avatar" />
-        <span id="name" />
+<div>
+    <div class="flex mb-3 text-start">
+        <Skeleton class="w-[36px] h-[36px] rounded-full animate-none" />
+        <Skeleton class="w-[200px] h-[24px] m-auto ml-2 animate-none" />
     </div>
 
-    <span id="attachment" />
+    <Skeleton class="w-[500px] h-[350px] mb-2 animate-none" />
+
+    <div class="flex mb-2 text-start w-full">
+        <Skeleton
+            class="w-[32px] h-[32px] mb-4 rounded-full self-start ml-2 animate-none"
+        />
+        <Skeleton class="w-[100px] h-[24px] ml-2 mt-1 animate-none" />
+    </div>
 </div>
-
-<style>
-    .prop-container {
-        display: flex;
-        flex-direction: column;
-        margin-bottom: 30px;
-    }
-
-    .top {
-        display: flex;
-        align-items: center;
-    }
-
-    #avatar {
-        width: 36px;
-        height: 36px;
-        background: var(--primary);
-        border-radius: 30px;
-        margin-right: 5px;
-    }
-
-    .mobile #avatar {
-        background: var(--tertiary);
-    }
-
-    #name {
-        width: 150px;
-        height: 20px;
-        border-radius: 30px;
-        background: var(--primary);
-    }
-
-    .mobile #name {
-        background: var(--tertiary);
-    }
-
-    #attachment {
-        display: inline-block;
-        width: 500px;
-        height: 500px;
-        background: var(--primary);
-        border-radius: 10px;
-        margin-top: 5px;
-    }
-
-    .mobile #attachment {
-        background: var(--tertiary);
-    }
-
-    @media screen and (max-width: 850px) {
-        .mobile #attachment {
-            width: 300px;
-            height: 300px;
-        }
-    }
-
-    @keyframes shimmer {
-        100% {
-            -webkit-mask-position: left;
-        }
-    }
-</style>

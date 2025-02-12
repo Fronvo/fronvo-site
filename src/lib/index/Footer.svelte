@@ -1,5 +1,20 @@
+<script lang="ts">
+    import Separator from '$lib/components/ui/separator/separator.svelte';
+
+    export let fixed = false;
+</script>
+
 <div
-    class="text-base mobile:text-sm smobile:text-xs fixed p-4 bg-index-bg w-full flex items-center justify-center bottom-0 select-none"
+    class={`${
+        fixed ? 'fixed bottom-0 right-0 left-0' : ''
+    }bg-background m-auto w-full pr-0 pl-0 h-[64px] max-h-[64px] p-4 select-none`}
 >
-    <h1 class="pr-2 font-semibold text-white">© 2024 Fronvo</h1>
+    <Separator />
+
+    <div class="flex items-center justify-center pt-2 pb-2">
+        <h1 class="mobile:text-sm font-medium text-sm">
+            © Stamatis Tsagkliotis 2025 | Much ♥ to
+            <a href="https://ui.shadcn.com" target="_blank"> shadcn </a>
+        </h1>
+    </div>
 </div>

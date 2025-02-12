@@ -1,4 +1,4 @@
-import type { FetchedMessage } from 'interfaces/account/fetchMessages';
+import type { FetchedMessage } from 'interfaces/all';
 import type {
     FronvoAccount,
     RoomMessage,
@@ -19,7 +19,6 @@ export const isInServer: Writable<boolean> = writable(false);
 export const tempCurrentServer: Writable<Server> = writable();
 export const currentServer: Writable<Server> = writable();
 export const currentChannel: Writable<Channel> = writable();
-export const channelRenamingId: Writable<string> = writable('');
 
 export const channelFilter: Writable<string> = writable('');
 
@@ -46,6 +45,7 @@ export const pendingChannelId: Writable<string> = writable();
 /****************************** Message ******************************/
 export const sendContent: Writable<string> = writable('');
 export const sendingImage: Writable<boolean> = writable(false);
+export const canMessage: Writable<boolean> = writable(false);
 /****************************** Message ******************************/
 
 /****************************** Reply ******************************/

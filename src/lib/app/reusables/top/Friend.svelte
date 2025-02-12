@@ -1,229 +1,184 @@
 <script lang="ts">
-    import type { FronvoAccount } from 'interfaces/all';
-    import {
-        ModalTypes,
-        targetFriendModal,
-        targetProfileModal,
-    } from 'stores/modals';
-    import { showDropdownMouse, showModal } from 'utilities/main';
-    import { mousePos, socket } from 'stores/main';
+    import type { FronvoAccount, Room } from 'interfaces/all';
+    import { targetProfileModal, viewingProfile } from 'stores/modals';
     import { onMount } from 'svelte';
+    import Button from '$lib/components/ui/button/button.svelte';
     import {
-        DropdownTypes,
-        currentDropdownId,
-        dropdownVisible,
-    } from 'stores/dropdowns';
+        currentChannel,
+        currentRoomData,
+        currentRoomId,
+        currentRoomLoaded,
+        currentRoomMessages,
+        currentServer,
+        dmsList,
+        isInServer,
+        mobileShowMembers,
+    } from 'stores/rooms';
+    import { setTitle } from 'utilities/main';
+    import { goto } from '$app/navigation';
+    import {
+        ContextMenu,
+        ContextMenuContent,
+        ContextMenuItem,
+        ContextMenuSeparator,
+        ContextMenuTrigger,
+    } from '$lib/components/ui/context-menu';
+    import Indicator from '../all/Indicator.svelte';
 
     export let profileData: FronvoAccount;
+    export let showIfOnline = false;
+    export let onlineStatusChanged: (online: boolean) => void = () => {};
 
     let onlineP = false;
-
-    let indicator: HTMLDivElement;
 
     function showProfileModal(): void {
         $targetProfileModal = profileData;
 
-        showModal(ModalTypes.Profile);
+        $viewingProfile = true;
     }
 
-    function showOptions(): void {
-        $targetFriendModal = profileData;
+    function messageFriend(): void {
+        if ($currentRoomData?.dmUser.id == profileData.id) {
+            return;
+        }
 
-        showDropdownMouse(DropdownTypes.Friend, $mousePos);
+        attemptEnterRoom();
+
+        // socket.emit(
+        //     'createDM',
+        //     {
+        //         profileId: profileData.profileId,
+        //     },
+        //     attemptEnterRoom,
+        // );
     }
 
-    function updateIndicator(): void {
-        setTimeout(() => {
-            if (!indicator) return;
+    async function attemptEnterRoom(): Promise<void> {
+        for (const dmIndex in $dmsList) {
+            const dm = $dmsList[dmIndex] as Room;
 
-            if (onlineP) {
-                indicator.style.background = 'rgb(56, 212, 42)';
-                indicator.style.border = '3px solid var(--bg)';
-                indicator.style.visibility = 'visible';
-            } else {
-                indicator.style.visibility = 'hidden';
-            }
-        }, 0);
+            if (dm.dmUser.id != profileData.id) continue;
+
+            if ($currentRoomData?.roomId == dm.roomId) return;
+
+            dm.unreadCount = 0;
+
+            $currentRoomData = dm;
+            $currentRoomLoaded = false;
+            $currentRoomLoaded = true;
+            $currentRoomMessages = [];
+            $currentRoomId = dm.roomId;
+
+            $currentChannel = undefined;
+            $currentServer = undefined;
+            $isInServer = false;
+            $mobileShowMembers = false;
+
+            setTitle(`@${dm.dmUser.id}`);
+            goto(`/@${dm.dmUser.id}`);
+        }
     }
 
     onMount(() => {
         onlineP = profileData.online;
 
-        updateIndicator();
+        // socket.on('onlineStatusUpdated', ({ profileId, online }) => {
+        //     if (profileId == profileData.profileId) {
+        //         profileData.online = online;
+        //         onlineP = online;
 
-        socket.on('onlineStatusUpdated', ({ profileId, online }) => {
-            if (profileId == profileData.profileId) {
-                profileData.online = online;
+        //         onlineStatusChanged(online);
 
-                profileData = profileData;
+        //         profileData = profileData;
+        //     }
+        // });
 
-                updateIndicator();
-            }
-        });
+        // socket.on('profileDataUpdated', ({ profileId, username, avatar }) => {
+        //     if (profileId == profileData.profileId) {
+        //         profileData.username = username;
+        //         profileData.avatar = avatar;
 
-        socket.on('profileDataUpdated', ({ profileId, username, avatar }) => {
-            if (profileId == profileData.profileId) {
-                profileData.username = username;
-                profileData.avatar = avatar;
+        //         profileData = profileData;
+        //     }
+        // });
 
-                profileData = profileData;
-            }
-        });
+        // socket.on('profileStatusUpdated', ({ profileId, status }) => {
+        //     if (profileId == profileData.profileId) {
+        //         profileData.status = status;
 
-        socket.on('profileStatusUpdated', ({ profileId, status }) => {
-            if (profileId == profileData.profileId) {
-                profileData.status = status;
-
-                profileData = profileData;
-            }
-        });
+        //         profileData = profileData;
+        //     }
+        // });
     });
 </script>
 
-<div
-    on:click={showProfileModal}
-    on:keydown={showProfileModal}
-    class={`friend-container ${!profileData.online ? 'offline' : ''} ${
-        $targetFriendModal?.profileId == profileData.profileId &&
-        $currentDropdownId == DropdownTypes.Friend &&
-        $dropdownVisible
-            ? 'active'
-            : ''
-    }`}
-    on:contextmenu={(ev) => {
-        showOptions();
+{#if !showIfOnline || (showIfOnline && onlineP)}
+    <ContextMenu>
+        <ContextMenuTrigger>
+            <Button
+                on:click={showProfileModal}
+                on:keydown={showProfileModal}
+                variant="ghost"
+                class={`select-none group flex w-full rounded-none duration-0 border-b hover:bg-accent/50 border-b-border/40 text-start p-1.5 pr-3 pl-3 h-[52px] min-h-[48px] ${
+                    !profileData.online ? 'offline' : ''
+                }`}
+            >
+                <div class="flex items-center">
+                    <img
+                        src={profileData.avatar
+                            ? `${profileData.avatar}/tr:w-72:h-72`
+                            : '/images/avatar.svg'}
+                        alt={`${profileData.username}'s avatar`}
+                        draggable={false}
+                        class={`w-[36px] h-[36px] rounded-full ${
+                            !profileData.avatar &&
+                            'bg-primary border-accent border-[1px] p-[3px]'
+                        }`}
+                    />
 
-        ev.preventDefault();
-    }}
->
-    <div class="badge-container">
-        <img
-            id="avatar"
-            src={profileData.avatar
-                ? `${profileData.avatar}/tr:w-72:h-72`
-                : '/images/avatar.png'}
-            alt={`${profileData.username}'s avatar`}
-            draggable={false}
-        />
+                    <Indicator online={onlineP} />
+                </div>
 
-        <div bind:this={indicator} class="indicator" />
-    </div>
+                <div class="flex flex-col flex-1">
+                    <div class="flex items-center">
+                        <h1
+                            id="username"
+                            class="text-md max-w-[200px] mr-2 overflow-hidden font-semibold text-ellipsis"
+                        >
+                            {profileData?.username}
+                        </h1>
 
-    <div class="bottom-container">
-        <h1 id="username">{profileData?.username}</h1>
+                        <h1
+                            id="username"
+                            class="text-xs opacity-0 group-hover:opacity-100 max-w-[200px] text-primary/75 overflow-hidden text-ellipsis"
+                        >
+                            {profileData?.id}
+                        </h1>
+                    </div>
 
-        {#if profileData.status}
-            <h1 id="status">{profileData?.status}</h1>
-        {/if}
-    </div>
-</div>
+                    <h1 class="text-[0.7rem] text-primary/75">
+                        {#if onlineP}
+                            {#if profileData.status}
+                                {profileData.status}
+                            {:else}
+                                Online
+                            {/if}
+                        {:else}
+                            Offline
+                        {/if}
+                    </h1>
+                </div>
+            </Button>
+        </ContextMenuTrigger>
 
-<style>
-    .friend-container {
-        display: flex;
-        flex-direction: row;
-        justify-content: start;
-        align-items: center;
-        background: transparent;
-        cursor: pointer;
-        padding: 8px;
-        overflow: hidden;
-        width: 350px;
-        height: 60px;
-        border-bottom: 1px solid rgb(255, 255, 255, 0.05);
-        pointer-events: all;
-        transition: 125ms;
-    }
+        <ContextMenuContent class="w-[150px]">
+            <ContextMenuItem on:click={showProfileModal}
+                >View profile</ContextMenuItem
+            >
 
-    .badge-container {
-        display: flex;
-        align-items: center;
-    }
+            <ContextMenuSeparator />
 
-    .friend-container:hover,
-    .active {
-        background: var(--primary);
-    }
-
-    div h1 {
-        margin: 0;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-    }
-
-    #avatar {
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-        width: 36px;
-        height: 36px;
-        border-radius: 30px;
-    }
-
-    .indicator {
-        width: 16px;
-        height: 16px;
-        border-radius: 30px;
-        transform: translateX(-12px) translateY(14px);
-        margin-bottom: 2px;
-    }
-
-    #username {
-        display: -webkit-box;
-        overflow: hidden;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        font-size: 1.05rem;
-        color: var(--text);
-        height: 23px;
-        font-weight: 500;
-    }
-
-    #avatar {
-        padding: 0;
-    }
-
-    .bottom-container {
-        display: flex;
-        flex-direction: column;
-        flex: 1;
-    }
-
-    #status {
-        font-size: 0.9rem;
-        color: var(--gray);
-        display: -webkit-box;
-        overflow: hidden;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        font-weight: 600;
-        height: 20px;
-    }
-
-    @media screen and (max-width: 850px) {
-        #avatar {
-            width: 32px;
-            height: 32px;
-        }
-
-        .indicator {
-            width: 15px;
-            height: 15px;
-        }
-
-        #username {
-            font-size: 0.95rem;
-        }
-
-        #status {
-            font-size: 0.8rem;
-        }
-    }
-</style>
+            <ContextMenuItem on:click={messageFriend}>Message</ContextMenuItem>
+        </ContextMenuContent>
+    </ContextMenu>
+{/if}

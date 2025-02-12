@@ -1,3 +1,8 @@
+import { IMAGEKIT_PRIVATE_KEY } from '$env/static/private';
+import {
+    PUBLIC_IMAGEKIT_PUBLIC_KEY,
+    PUBLIC_IMAGEKIT_URL_ENDPOINT,
+} from '$env/static/public';
 import { json } from '@sveltejs/kit';
 import Imagekit from 'imagekit';
 import { v4 } from 'uuid';
@@ -10,18 +15,11 @@ export async function POST({ request }) {
     const width = requestParsed['width'] as number;
     const height = requestParsed['height'] as number;
     const noTransform = requestParsed['noTransform'] as boolean;
-    const isPRO = requestParsed['isPRO'] as boolean;
 
     const imagekit = new Imagekit({
-        urlEndpoint: !isPRO
-            ? import.meta.env.VITE_IMAGEKIT2_ENDPOINT
-            : import.meta.env.VITE_IMAGEKIT_ENDPOINT,
-        publicKey: !isPRO
-            ? import.meta.env.VITE_IMAGEKIT2_PUBLIC
-            : import.meta.env.VITE_IMAGEKIT_PUBLIC,
-        privateKey: !isPRO
-            ? import.meta.env.VITE_IMAGEKIT2_PRIVATE
-            : import.meta.env.VITE_IMAGEKIT_PRIVATE,
+        urlEndpoint: PUBLIC_IMAGEKIT_URL_ENDPOINT,
+        publicKey: PUBLIC_IMAGEKIT_PUBLIC_KEY,
+        privateKey: IMAGEKIT_PRIVATE_KEY,
     });
 
     const result = await imagekit.upload({

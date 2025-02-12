@@ -1,107 +1,32 @@
 <script lang="ts">
-    import { isMobile } from 'stores/main';
+    import Input from '$lib/components/ui/input/input.svelte';
 
     export let profileId: string;
     export let username: string;
-    export let status: string;
+    export let editable = false;
 </script>
 
-<div class={`identifier-container ${$isMobile ? 'mobile' : ''}`}>
-    <div class="info-container">
-        <div class="lock-container">
-            <h1 id="username">
-                {username ? username : 'Deleted user'}
-            </h1>
-        </div>
+<div class={`flex flex-col mb-4 ${!editable ? 'pr-2 pl-2' : ''}`}>
+    {#if !editable}
+        <h1 class="text-xl font-bold">
+            {username ? username : 'Deleted user'}
+        </h1>
 
-        <div class="secondary-container">
-            <h1 id="identifier">
-                {profileId ? profileId : 'deleted user'}
-            </h1>
-        </div>
+        <h1 class="text-xs translate-y-[-2px] font-medium">
+            {profileId ? profileId : 'Deleted user'}
+        </h1>
+    {:else}
+        <Input
+            class="p-1.5 font-bold text-lg max-w-[200px] z-10"
+            bind:value={username}
+            placeholder="Username"
+            maxlength={30}
+        />
 
-        {#if status}
-            <h1 id="status">{status}</h1>
-        {/if}
-    </div>
+        <Input
+            class="text-xs mt-2 h-[32px] max-w-[150px]"
+            value={profileId}
+            disabled
+        />
+    {/if}
 </div>
-
-<style>
-    .identifier-container {
-        display: flex;
-        align-items: center;
-        justify-content: flex-start;
-        margin-left: 15px;
-    }
-
-    .info-container {
-        display: flex;
-        flex-direction: column;
-        align-items: start;
-        justify-content: center;
-        flex: 1;
-    }
-
-    .lock-container {
-        display: flex;
-        align-items: center;
-    }
-
-    #username {
-        font-size: 1.5rem;
-        margin: 0;
-        margin-left: 5px;
-        margin-right: 5px;
-        color: var(--text);
-        display: -webkit-box;
-        overflow: hidden;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        font-weight: 700;
-    }
-
-    .secondary-container {
-        display: flex;
-        align-items: center;
-    }
-
-    #identifier {
-        font-size: 1.05rem;
-        margin: 0;
-        font-weight: 500;
-        margin-right: 5px;
-        margin-left: 5px;
-        display: -webkit-box;
-        overflow: hidden;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        color: var(--text);
-    }
-
-    #status {
-        font-size: 0.9rem;
-        margin: 0;
-        margin-right: 5px;
-        margin-left: 5px;
-        margin-top: 10px;
-        display: -webkit-box;
-        overflow: hidden;
-        -webkit-line-clamp: 1;
-        -webkit-box-orient: vertical;
-        color: var(--text);
-    }
-
-    @media screen and (max-width: 850px) {
-        .mobile #username {
-            font-size: 1.3rem;
-        }
-
-        .mobile #identifier {
-            font-size: 0.95rem;
-        }
-
-        .mobile #status {
-            font-size: 0.8rem;
-        }
-    }
-</style>

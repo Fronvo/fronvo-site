@@ -5,22 +5,12 @@
 </script>
 
 {#if $currentRoomData?.dmUser && $dmsShowProfile}
-    <div class="members-container">
+    <div class="flex flex-col items-center w-[275px] h-screen pt-4 border-l">
         <PreviewSmall profileData={$currentRoomData?.dmUser} />
 
-        <DmMutuals />
+        <!-- Deleted users -->
+        {#if $currentRoomData?.dmUser.id}
+            <DmMutuals />
+        {/if}
     </div>
 {/if}
-
-<style>
-    .members-container {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 275px;
-        z-index: 2;
-        overflow: auto;
-        height: calc(100vh - 65px);
-        overflow: hidden;
-    }
-</style>

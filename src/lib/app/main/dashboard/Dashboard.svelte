@@ -4,10 +4,8 @@
     import DashboardProfile from './DashboardProfile.svelte';
     import DashboardPosts from './DashboardPosts.svelte';
     import DashboardFriends from './DashboardFriends.svelte';
-    import DashboardFriendOptions from './DashboardFriendOptions.svelte';
     import { onDestroy, onMount } from 'svelte';
     import type { Unsubscriber } from 'svelte/store';
-    import DashboardProfileOptions from './DashboardProfileOptions.svelte';
     import { isInServer } from 'stores/rooms';
     import { goto } from '$app/navigation';
     import { isMobile } from 'stores/main';
@@ -30,8 +28,8 @@
 
         unsubscribe2 = isInServer.subscribe((state) => {
             if (!state) {
-                if ($activeDashboardTab == DashboardOptions.Dashboard) {
-                    goto('/homepage');
+                if ($activeDashboardTab == DashboardOptions.Home) {
+                    goto('/home');
                 } else if ($activeDashboardTab == DashboardOptions.Profile) {
                     goto('/profile');
                 } else if ($activeDashboardTab == DashboardOptions.Friends) {
@@ -48,64 +46,18 @@
 </script>
 
 <div
-    class={`dashboard-container ${
-        $totalDashboardPosts == 0 ? 'overflow-hidden' : ''
-    } ${$isMobile ? 'mobile' : ''}`}
+    class={`flex flex-col w-full h-[100vh] overflow-x-hidden overflow-y-auto ${
+        $isMobile ? 'mobile' : ''
+    }`}
     bind:this={dashboardContainer}
 >
-    {#if $activeDashboardTab == DashboardOptions.Dashboard}
+    {#if $activeDashboardTab == DashboardOptions.Home}
         <DashboardPosts />
     {:else if $activeDashboardTab == DashboardOptions.Profile}
         <DashboardProfile />
-        <DashboardProfileOptions />
     {:else if $activeDashboardTab == DashboardOptions.Friends}
         <DashboardFriends />
-        <DashboardFriendOptions />
     {:else if $activeDashboardTab == DashboardOptions.Messages}
         <DashboardMessages />
     {/if}
 </div>
-
-<style>
-    .dashboard-container {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        padding-right: 20%;
-        height: calc(100vh);
-        overflow-x: hidden;
-        overflow-y: scroll;
-        z-index: 1;
-    }
-
-    .mobile {
-        padding-right: 0;
-    }
-
-    .overflow-hidden {
-        overflow: hidden;
-    }
-
-    .dashboard-container::-webkit-scrollbar {
-        width: 10px;
-    }
-
-    .dashboard-container::-webkit-scrollbar-thumb {
-        background: transparent;
-    }
-
-    .dashboard-container:hover.dashboard-container::-webkit-scrollbar-thumb {
-        background: var(--tertiary);
-        width: 6px;
-    }
-
-    @media screen and (max-width: 1050px) {
-        .dashboard-container {
-            padding-right: 10%;
-        }
-
-        .mobile {
-            padding-right: 0;
-        }
-    }
-</style>

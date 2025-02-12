@@ -1,39 +1,40 @@
 <script lang="ts">
-    import { dismissModal } from 'utilities/main';
-    import ModalTemplate from '../ModalTemplate.svelte';
-    import { modalLoading, type ModalData } from 'stores/modals';
-    import { removeKey } from 'utilities/global';
+    import { loggingOut } from 'stores/modals';
     import { socket } from 'stores/main';
-    import ProfilePreviewLogout from '$lib/app/reusables/all/PreviewLogout.svelte';
-    import { ourData } from 'stores/profile';
+    import {
+        Dialog,
+        DialogClose,
+        DialogContent,
+        DialogDescription,
+        DialogTitle,
+    } from '$lib/components/ui/dialog';
+    import { Button } from '$lib/components/ui/button';
+    import Cookies from 'js-cookie';
 
     function logout(): void {
-        $modalLoading = true;
+        Cookies.remove('refreshToken');
+        Cookies.remove('accessToken');
 
-        removeKey('token');
-        removeKey('savedAccounts');
+        localStorage.clear();
 
-        socket.emit('logout', () => {
-            location.href = '/app';
-        });
+        location.href = '/app';
     }
-
-    const data: ModalData = {
-        title: 'Logout from Fronvo',
-        actions: [
-            {
-                title: 'Logout',
-                callback: logout,
-                danger: true,
-            },
-            {
-                title: 'Cancel',
-                callback: dismissModal,
-            },
-        ],
-    };
 </script>
 
-<ModalTemplate {data}>
-    <ProfilePreviewLogout profileData={$ourData} />
-</ModalTemplate>
+<Dialog open={$loggingOut} onOpenChange={(e) => ($loggingOut = e)}>
+    <DialogContent>
+        <DialogTitle>Logout from Fronvo</DialogTitle>
+        <DialogDescription
+            >Are you sure you want to log out of Fronvo?</DialogDescription
+        >
+
+        <div class="flex items-center justify-end">
+            <DialogClose
+                ><Button variant="outline" class="mr-2">Cancel</Button
+                ></DialogClose
+            >
+
+            <Button on:click={logout} variant="destructive">Logout</Button>
+        </div>
+    </DialogContent>
+</Dialog>

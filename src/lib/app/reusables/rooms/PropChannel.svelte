@@ -1,46 +1,9 @@
 <script lang="ts">
-    export let opacity: number;
+    import Skeleton from '$lib/components/ui/skeleton/skeleton.svelte';
 </script>
 
-<div class="prop-container" style={`opacity: ${opacity}`}>
-    <div class="top">
-        <span id="avatar" />
-        <span id="name" />
-    </div>
+<div class="flex p-2 mb-3 items-center w-full justify-center pr-4">
+    <Skeleton class="w-[24px] h-[24px] mr-2 animate-none" />
+
+    <Skeleton class="w-[150px] h-[20px] animate-none" />
 </div>
-
-<style>
-    .prop-container {
-        display: flex;
-        flex-direction: column;
-        margin-bottom: 20px;
-        padding-top: 10px;
-        padding-left: 20px;
-    }
-
-    .top {
-        display: flex;
-        align-items: center;
-    }
-
-    #avatar {
-        width: 26px;
-        height: 26px;
-        background: var(--tertiary);
-        border-radius: 10px;
-        margin-right: 10px;
-    }
-
-    #name {
-        width: 150px;
-        height: 20px;
-        border-radius: 30px;
-        background: var(--tertiary);
-    }
-
-    @keyframes shimmer {
-        100% {
-            -webkit-mask-position: left;
-        }
-    }
-</style>

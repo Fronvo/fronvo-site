@@ -18,12 +18,10 @@
     });
 </script>
 
+<svelte:head>
+    <title>Fronvo | Private social media</title>
+</svelte:head>
+
 {#if mountReady && $indexVisible}
-    <div
-        class="w-full h-screen flex flex-col overflow-y-scroll overflow-h-hidden"
-    >
-        {#if $indexVisible}
-            <IndexMain />
-        {/if}
-    </div>
+    <IndexMain />
 {/if}

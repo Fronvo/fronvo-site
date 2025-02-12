@@ -3,36 +3,28 @@
         getCachedMessages,
         getRoomMessages,
         isRoomCached,
-        removeCachedMessage,
         removePendingMessage,
-        sendImage,
         updateCachedMessages,
     } from 'utilities/rooms';
     import {
-        replyingTo,
-        replyingToId,
         currentRoomId,
         currentRoomData as roomData,
         currentRoomMessages as messages,
         currentRoomLoaded,
-        sendingImage,
-        isInServer,
         currentServer,
         currentChannel,
         cachedRooms,
         pendingMessages,
     } from 'stores/rooms';
     import { onDestroy, onMount } from 'svelte';
-    import { isAcceptedImage, setTitle } from 'utilities/main';
+    import { setTitle } from 'utilities/main';
     import { ourData } from 'stores/profile';
     import Message from '$lib/app/reusables/rooms/Message.svelte';
-    import { fronvoTitle, isMobile, socket } from 'stores/main';
+    import { fronvoTitle, isMobile } from 'stores/main';
     import InfiniteLoading from 'svelte-infinite-loading';
     import type { Unsubscriber } from 'svelte/store';
-    import type { NewMessageResult } from 'interfaces/account/newMessage';
-    import { toast } from 'svelte-sonner';
-    import { scale } from 'svelte/transition';
-    import PropMessages from '$lib/app/reusables/rooms/PropMessages.svelte';
+    import PropText from '$lib/app/reusables/rooms/PropText.svelte';
+    import RoomChatStart from './RoomChatStart.svelte';
 
     let chat: HTMLDivElement;
     let unsubscribe: Unsubscriber;
@@ -46,8 +38,8 @@
 
             return;
         } else {
-            const roomId = $currentChannel?.channelId || $currentRoomId;
-            const serverId = $currentServer?.serverId;
+            const roomId = $currentChannel?.id || $currentRoomId;
+            const serverId = $currentServer?.id;
 
             // Not cached, load
             if (!isRoomCached(roomId, $cachedRooms)) {
@@ -56,6 +48,8 @@
                     $messages.length,
                     serverId
                 );
+
+                previousEmpty = true;
 
                 // If empty, cache room and set flag for next load
                 if (msgs.length == 0) {
@@ -150,10 +144,7 @@
             }
         };
 
-        function messageListener({
-            roomId,
-            newMessageData,
-        }: NewMessageResult): void {
+        function messageListener({ roomId, newMessageData }): void {
             if ($messages.includes(newMessageData)) return;
 
             if ($pendingMessages.includes(newMessageData.message.content)) {
@@ -179,14 +170,12 @@
                         break;
                     }
                 }
-            } else if (
-                ($currentChannel?.channelId || $currentRoomId) == roomId
-            ) {
+            } else if (($currentChannel?.id || $currentRoomId) == roomId) {
                 $messages.push(newMessageData);
                 $messages = $messages;
 
                 updateCachedMessages(
-                    $currentChannel?.channelId || $currentRoomId,
+                    $currentChannel?.id || $currentRoomId,
                     $messages,
                     $cachedRooms
                 );
@@ -199,8 +188,7 @@
                 }, 0);
 
                 if (
-                    newMessageData.profileData.profileId !=
-                        $ourData.profileId &&
+                    newMessageData.profileData.id != $ourData.id &&
                     !document.hasFocus() &&
                     !$fronvoTitle.includes('(1)')
                 ) {
@@ -209,95 +197,37 @@
             }
         }
 
-        socket.on('newMessage', messageListener);
+        // socket.on('newMessage', messageListener);
     }
 
     function attachDeletedMessageListener(): void {
-        socket.on('messageDeleted', ({ messageId, roomId }) => {
-            if (($currentChannel?.channelId || $currentRoomId) != roomId) {
-                setTimeout(() => {
-                    // Update cached room data
-                    removeCachedMessage(roomId, messageId, $cachedRooms);
-                }, 0);
-
-                return;
-            }
-
-            for (const messageIndex in $messages) {
-                const targetMessage = $messages[messageIndex];
-
-                if (messageId == $replyingToId) {
-                    $replyingTo = undefined;
-                    $replyingToId = undefined;
-                }
-
-                if (targetMessage.message.messageId == messageId) {
-                    $messages.splice(Number(messageIndex), 1);
-                    $messages = $messages;
-
-                    if ($messages.length == 0) {
-                        previousEmpty = false;
-                    }
-
-                    break;
-                }
-            }
-        });
-    }
-
-    function addDropListener(): void {
-        chat.addEventListener('dragover', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            e.dataTransfer.dropEffect = 'copy';
-
-            chat.style.opacity = '0.5';
-        });
-
-        chat.addEventListener('dragend', () => {
-            chat.style.opacity = '1';
-        });
-
-        chat.addEventListener('dragleave', () => {
-            chat.style.opacity = '1';
-        });
-
-        chat.addEventListener('drop', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-
-            chat.style.opacity = '1';
-
-            if (e.dataTransfer.files.length > 0) {
-                const file = e.dataTransfer.files[0];
-
-                if (file.size > ($ourData.isTurbo ? 3000000 : 1000000)) {
-                    toast(`Image is above ${$ourData.isTurbo ? 3 : 1}MB.`);
-                    return;
-                }
-
-                if (isAcceptedImage(file.type)) {
-                    const reader = new FileReader();
-
-                    reader.addEventListener('load', async () => {
-                        sendImage(
-                            $currentChannel?.channelId || $currentRoomId,
-                            $sendingImage,
-                            reader.result,
-                            $ourData.isTurbo,
-                            $isInServer ? $currentServer.serverId : ''
-                        );
-                    });
-
-                    reader.readAsDataURL(file);
-                }
-            }
-        });
+        // socket.on('messageDeleted', ({ messageId, roomId }) => {
+        //     if (($currentChannel?.channelId || $currentRoomId) != roomId) {
+        //         setTimeout(() => {
+        //             // Update cached room data
+        //             removeCachedMessage(roomId, messageId, $cachedRooms);
+        //         }, 0);
+        //         return;
+        //     }
+        //     for (const messageIndex in $messages) {
+        //         const targetMessage = $messages[messageIndex];
+        //         if (messageId == $replyingToId) {
+        //             $replyingTo = undefined;
+        //             $replyingToId = undefined;
+        //         }
+        //         if (targetMessage.message.messageId == messageId) {
+        //             $messages.splice(Number(messageIndex), 1);
+        //             $messages = $messages;
+        //             if ($messages.length == 0) {
+        //                 previousEmpty = false;
+        //             }
+        //             break;
+        //         }
+        //     }
+        // });
     }
 
     onMount(() => {
-        addDropListener();
-
         chat.scrollTop = chat.scrollHeight;
 
         currentRoomId.subscribe((state) => {
@@ -347,11 +277,11 @@
             setTimeout(() => {
                 if (!chat) return;
 
-                chat.scrollTop = chat.scrollHeight;
-
                 setTimeout(() => {
                     // Load images
                     chat.style.opacity = '1';
+
+                    chat.scrollTop = chat.scrollHeight;
                 }, 0);
 
                 canShowScroll = true;
@@ -370,11 +300,21 @@
 {#if $messages}
     <div
         bind:this={chat}
-        class={`chat-container ${$isMobile ? 'mobile' : ''}`}
-        transition:scale={{ duration: 1000, start: 0.975 }}
+        class={`[&::-webkit-scrollbar]:bg-none [&::-webkit-scrollbar]:w-[10px] ${
+            $messages.length > 0 &&
+            canShowScroll &&
+            '[&::-webkit-scrollbar-thumb]:bg-accent'
+        } [&::-webkit-scrollbar-thumb]:rounded-full flex flex-col w-full max-w-full h-screen pb-[20px] pt-[20px] overflow-y-auto overflow-x-hidden opacity-0 z-1 ${
+            $isMobile ? 'mobile' : ''
+        }`}
     >
         {#if $messages.length == 0 && !previousEmpty}
-            <PropMessages />
+            <PropText />
+            <PropText />
+            <PropText />
+            <PropText />
+        {:else}
+            <RoomChatStart />
         {/if}
 
         {#if $roomData || $currentChannel}
@@ -391,8 +331,6 @@
                 </InfiniteLoading>
             {/if}
 
-            <span class="placeholder" />
-
             {#each $messages as { message, profileData }, i}
                 <Message
                     {i}
@@ -406,41 +344,3 @@
         {/if}
     </div>
 {/if}
-
-<style>
-    .chat-container {
-        display: flex;
-        flex-direction: column;
-        width: 100%;
-        max-width: 100%;
-        height: calc(100vh);
-        padding-bottom: 20px;
-        padding-top: 20px;
-        overflow-y: scroll;
-        overflow-x: hidden;
-        transition: none;
-        opacity: 0;
-        z-index: 1;
-    }
-
-    .chat-container::-webkit-scrollbar {
-        width: 8px;
-    }
-
-    .chat-container::-webkit-scrollbar-thumb {
-        background: transparent;
-    }
-
-    .chat-container:hover.chat-container::-webkit-scrollbar-thumb {
-        background: var(--tertiary);
-        width: 10px;
-    }
-
-    .placeholder {
-        flex: 1;
-    }
-
-    .mobile {
-        transform: translateY(-50px);
-    }
-</style>

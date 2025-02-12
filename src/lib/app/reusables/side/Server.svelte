@@ -1,154 +1,74 @@
 <script lang="ts">
     import type { Server } from 'interfaces/all';
-    import { isMobile, mousePos } from 'stores/main';
+    import { isMobile } from 'stores/main';
     import {
         currentChannel,
         currentRoomData,
         currentRoomId,
+        currentRoomLoaded,
         currentRoomMessages,
         currentServer,
         isInServer,
-        tempCurrentServer,
     } from 'stores/rooms';
-    import { setTitle, showDropdownMouse } from 'utilities/main';
-    import {
-        DropdownTypes,
-        currentDropdownId,
-        dropdownVisible,
-    } from 'stores/dropdowns';
+    import { setTitle } from 'utilities/main';
     import { goto } from '$app/navigation';
+    import Button from '$lib/components/ui/button/button.svelte';
 
     export let serverData: Server;
 
     async function enterServer(): Promise<void> {
-        if ($currentServer?.serverId == serverData.serverId) return;
-
-        $currentChannel = undefined;
-        $currentRoomId = undefined;
-        $currentRoomData = undefined;
+        if ($currentServer?.id == serverData.id) return;
 
         $isInServer = true;
         $currentServer = serverData;
 
-        $currentRoomMessages = [];
+        if (serverData.channels.length > 0 && !$isMobile) {
+            const channel = serverData.channels[0];
 
-        goto(`/${serverData.invite}`);
+            $currentChannel = channel;
+            $currentRoomLoaded = false;
+            $currentRoomLoaded = true;
+            $currentRoomMessages = [];
 
-        setTitle(serverData.name);
-    }
+            goto(
+                `/${encodeURIComponent(
+                    $currentServer.invite
+                )}/${encodeURIComponent(channel.name)}`
+            );
 
-    function showOptions(): void {
-        $tempCurrentServer = serverData;
+            setTitle(`#${channel.name} | ${$currentServer.name}`);
+        } else {
+            $currentChannel = undefined;
+            $currentRoomId = undefined;
+            $currentRoomData = undefined;
 
-        showDropdownMouse(DropdownTypes.ServerTempSettings, $mousePos);
+            $currentRoomMessages = [];
+
+            goto(`/${serverData.invite}`);
+
+            setTitle(serverData.name);
+        }
     }
 </script>
 
-{#if serverData.icon}
+{#if serverData.avatar}
     <img
-        class={`${
-            $currentRoomId == serverData.serverId ||
-            ($tempCurrentServer.serverId == serverData.serverId &&
-                $dropdownVisible &&
-                $currentDropdownId == DropdownTypes.ServerTempSettings)
-                ? 'active'
-                : ''
-        } ${$isMobile ? 'mobile' : ''}`}
         on:click={enterServer}
         on:keydown={enterServer}
-        id="icon"
-        src={`${serverData.icon}/tr:w-96:h-96`}
+        src={`${serverData.avatar}/tr:w-96:h-96`}
         alt={`${serverData.name}\'s icon'`}
         draggable={false}
-        on:contextmenu={(ev) => {
-            showOptions();
-
-            ev.preventDefault();
-        }}
     />
 {:else}
-    <span
-        class={`placeholder ${
-            $currentServer?.serverId == serverData.serverId ||
-            ($tempCurrentServer?.serverId == serverData.serverId &&
-                $dropdownVisible &&
-                $currentDropdownId == DropdownTypes.ServerTempSettings)
-                ? 'placeholder-active'
-                : ''
+    <Button
+        variant="outline"
+        class={`select-none w-[48px] h-[48px] rounded-full mt-1 mb-1 ${
+            $currentServer?.id == serverData.id ? 'bg-accent border-accent' : ''
         } ${$isMobile ? 'mobile-placeholder' : ''}`}
         on:click={enterServer}
         on:keydown={enterServer}
         id="icon"
-        on:contextmenu={(ev) => {
-            showOptions();
-
-            ev.preventDefault();
-        }}
     >
-        <h1>{serverData.name[0]}{serverData.name[1] || ''}</h1></span
+        <h1>{serverData.name[0]}{serverData.name[1] || ''}</h1></Button
     >
 {/if}
-
-<style>
-    #icon {
-        width: 48px;
-        min-width: 48px;
-        height: 48px;
-        min-height: 48px;
-        cursor: pointer;
-        margin: 0;
-        padding: 0;
-        transition: 125ms;
-        margin-bottom: 10px;
-        user-select: none;
-    }
-
-    img {
-        border-radius: 25px;
-    }
-
-    #icon:hover {
-        border-radius: 15px;
-    }
-
-    #icon:active {
-        transform: translateY(2px);
-    }
-
-    .placeholder {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: var(--primary);
-        border-radius: 25px;
-        border: 3px solid transparent;
-    }
-
-    .mobile-placeholder {
-        background: var(--tertiary);
-    }
-
-    .placeholder h1 {
-        font-size: 1.1rem;
-        font-weight: 600;
-        transition: 125ms;
-        color: var(--text);
-    }
-
-    .placeholder:hover h1 {
-        color: var(--text);
-    }
-
-    .active {
-        border-radius: 15px;
-    }
-
-    .placeholder-active {
-        border-radius: 15px;
-        border: 3px solid var(--text);
-    }
-
-    .placeholder-active h1 {
-        color: var(--text);
-    }
-</style>

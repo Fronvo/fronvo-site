@@ -1,4 +1,10 @@
-import type { FronvoAccount, Room, Server } from 'interfaces/all';
+import type {
+    FronvoAccount,
+    Member,
+    Room,
+    RoomMessage,
+    Server,
+} from 'interfaces/all';
 import {
     sendContent,
     replyingTo,
@@ -16,32 +22,18 @@ import {
     cachedRooms as cachedRoomsStore,
     pendingMessages as pendingMessagesStore,
 } from 'stores/rooms';
-import { socket } from 'stores/main';
-import type { FetchedMessage } from 'interfaces/account/fetchMessages';
+import type { FetchedMessage } from 'interfaces/all';
+import { sendPostRequest, sendRequest } from './main';
 
 export async function fetchConvos(): Promise<Room[]> {
-    return new Promise((resolve) => {
-        socket.emit('fetchConvos', ({ convos }) => {
-            resolve(convos);
-        });
-    });
+    return (await sendRequest('me/convos')).convos;
 }
 
 export async function fetchServers(): Promise<Server[]> {
-    return new Promise((resolve) => {
-        socket.emit('fetchServers', ({ servers }) => {
-            resolve(servers);
-        });
-    });
+    return (await sendRequest('me/servers')).servers;
 }
 
 export async function loadRoomsData(): Promise<Room[]> {
-    currentRoomId.set(undefined);
-    currentRoomData.set(undefined);
-    currentRoomMessages.set([]);
-    currentRoomLoaded.set(false);
-    isInServer.set(false);
-
     // Load convos data
     const convos = await fetchConvos();
 
@@ -82,16 +74,23 @@ export function sendMessage(
     if (content.trim().length == 0) return;
 
     if (!serverId) {
-        socket.emit('sendMessage', {
-            roomId,
-            message: content,
-            replyId: replyingToP ? replyingToIdP : '',
-        });
+        // socket.emit('sendMessage', {
+        //     roomId,
+        //     message: content,
+        //     replyId: replyingToP ? replyingToIdP : '',
+        // });
     } else {
-        socket.emit('sendChannelMessage', {
-            serverId,
+        // socket.emit('sendChannelMessage', {
+        //     serverId,
+        //     channelId: roomId,
+        //     message: content,
+        //     replyId: replyingToP ? replyingToIdP : '',
+        // });
+
+        sendPostRequest('messages/create', {
+            id: serverId,
             channelId: roomId,
-            message: content,
+            content,
             replyId: replyingToP ? replyingToIdP : '',
         });
     }
@@ -103,13 +102,17 @@ export function sendMessage(
 
     messages.push({
         message: {
-            messageId: '',
-            ownerId: ourData.profileId,
+            id: '',
+            profile_id: ourData.id,
             content,
-            creationDate: new Date().toString(),
-            isImage: false,
-            isReply: replyingToP ? true : false,
-            replyId: replyingToIdP,
+            created_at: new Date().toString(),
+            reply_id: replyingToIdP,
+            channel_id: roomId,
+            server_id: serverId,
+            attachments: [],
+            edited: false,
+            spotify_embed: '',
+            tenor_url: '',
         },
         profileData: ourData,
     });
@@ -120,7 +123,6 @@ export function sendMessage(
 
 export async function uploadImage(
     file: any,
-    isPRO: boolean,
     width?: number,
     height?: number
 ): Promise<string> {
@@ -130,7 +132,6 @@ export async function uploadImage(
             body: JSON.stringify({
                 file,
                 noTransform: !width && !height,
-                isPRO,
                 width,
                 height,
             }),
@@ -142,7 +143,6 @@ export async function sendImage(
     roomId: string,
     sendingImage: boolean,
     file: any,
-    isPRO: boolean,
     serverId?: string
 ): Promise<void> {
     if (sendingImage) return;
@@ -153,43 +153,43 @@ export async function sendImage(
 
     img.src = file;
 
-    return new Promise((resolve) => {
-        img.onload = async () => {
-            const dimensions = {
-                width: img.width,
-                height: img.height,
-            };
+    // return new Promise((resolve) => {
+    //     img.onload = async () => {
+    //         const dimensions = {
+    //             width: img.width,
+    //             height: img.height,
+    //         };
 
-            if (!serverId) {
-                socket.emit(
-                    'sendImage',
-                    {
-                        roomId,
-                        attachment: await uploadImage(file, isPRO),
-                        ...dimensions,
-                    },
-                    () => {
-                        sendingImageStore.set(false);
-                    }
-                );
-            } else {
-                socket.emit(
-                    'sendChannelImage',
-                    {
-                        serverId,
-                        channelId: roomId,
-                        attachment: await uploadImage(file, isPRO),
-                        ...dimensions,
-                    },
-                    () => {
-                        sendingImageStore.set(false);
-                    }
-                );
-            }
+    //         if (!serverId) {
+    //             socket.emit(
+    //                 'sendImage',
+    //                 {
+    //                     roomId,
+    //                     attachment: await uploadImage(file),
+    //                     ...dimensions,
+    //                 },
+    //                 () => {
+    //                     sendingImageStore.set(false);
+    //                 }
+    //             );
+    //         } else {
+    //             socket.emit(
+    //                 'sendChannelImage',
+    //                 {
+    //                     serverId,
+    //                     channelId: roomId,
+    //                     attachment: await uploadImage(file),
+    //                     ...dimensions,
+    //                 },
+    //                 () => {
+    //                     sendingImageStore.set(false);
+    //                 }
+    //             );
+    //         }
 
-            resolve();
-        };
-    });
+    //         resolve();
+    //     };
+    // });
 }
 
 export function goHome(): void {
@@ -207,38 +207,54 @@ export async function getRoomMessages(
     currentMessagesLength: number,
     serverId?: string
 ): Promise<FetchedMessage[]> {
-    return new Promise((resolve) => {
-        if (!serverId) {
-            socket.emit(
-                'fetchMessages',
-                {
-                    roomId: roomId,
-                    from: currentMessagesLength.toString(),
-                    to: (currentMessagesLength + 50).toString(),
-                },
-                ({ roomMessages }) => {
-                    resolve(roomMessages);
+    if (!serverId) {
+        // socket.emit(
+        //     'fetchMessages',
+        //     {
+        //         roomId: roomId,
+        //         from: currentMessagesLength.toString(),
+        //         to: (currentMessagesLength + 50).toString(),
+        //     },
+        //     ({ roomMessages }) => {
+        //         resolve(roomMessages);
+        //         return;
+        //     }
+        // );
+    } else {
+        // socket.emit(
+        //     'fetchChannelMessages',
+        //     {
+        //         serverId,
+        //         channelId: roomId,
+        //         from: currentMessagesLength.toString(),
+        //         to: (currentMessagesLength + 50).toString(),
+        //     },
+        //     ({ channelMessages }) => {
+        //         resolve(channelMessages);
 
-                    return;
-                }
-            );
-        } else {
-            socket.emit(
-                'fetchChannelMessages',
-                {
-                    serverId,
-                    channelId: roomId,
-                    from: currentMessagesLength.toString(),
-                    to: (currentMessagesLength + 50).toString(),
-                },
-                ({ channelMessages }) => {
-                    resolve(channelMessages);
+        //         return;
+        //     }
+        // );
 
-                    return;
-                }
-            );
-        }
-    });
+        const res = await sendPostRequest('messages/fetch', {
+            id: serverId,
+            channelId: roomId,
+            from: currentMessagesLength,
+            to: currentMessagesLength + 50,
+        });
+
+        const messages: RoomMessage[] = res.messages;
+        const profileData: Member[] = res.profileData;
+
+        return messages.map((v, i) => {
+            return {
+                message: v,
+                profileData: profileData.find((v2) => v2.id === v.profile_id),
+            };
+        });
+    }
+
+    return [];
 }
 
 export function getCachedMessages(
@@ -293,7 +309,7 @@ export function removeCachedMessage(
             const newMessages: FetchedMessage[] = [];
 
             for (const messageIndex in cachedRooms[roomIdTemp]) {
-                if (room[messageIndex].message.messageId != messageId) {
+                if (room[messageIndex].message.id != messageId) {
                     newMessages.push(room[messageIndex]);
                 }
             }
@@ -338,24 +354,24 @@ export async function findAccountDMId(
         for (const dmIndex in dmsList) {
             const dm = dmsList[dmIndex];
 
-            if (dm.dmUser.profileId == profileId) {
+            if (dm.dmUser.id == profileId) {
                 resolve(dm.roomId);
 
                 return;
             }
         }
 
-        socket.emit(
-            'createDM',
-            {
-                profileId,
-            },
-            ({ roomId }) => {
-                if (roomId) {
-                    resolve(roomId);
-                    return;
-                }
-            }
-        );
+        // socket.emit(
+        //     'createDM',
+        //     {
+        //         profileId,
+        //     },
+        //     ({ roomId }) => {
+        //         if (roomId) {
+        //             resolve(roomId);
+        //             return;
+        //         }
+        //     }
+        // );
     });
 }

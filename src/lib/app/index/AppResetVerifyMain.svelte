@@ -1,23 +1,36 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
-    import { promotedToRVerify } from 'stores/index';
-    import { currentToken, socket } from 'stores/main';
+    import Button from '$lib/components/ui/button/button.svelte';
+    import {
+        Card,
+        CardContent,
+        CardDescription,
+        CardFooter,
+        CardHeader,
+        CardTitle,
+    } from '$lib/components/ui/card';
+    import Input from '$lib/components/ui/input/input.svelte';
+    import Label from '$lib/components/ui/label/label.svelte';
+    import { promotedToRVerify, resetVerifyEmail } from 'stores/index';
+    import { socket } from 'stores/main';
     import { onMount } from 'svelte';
-    import { quartOut } from 'svelte/easing';
-    import { fly } from 'svelte/transition';
-    import { initSocket } from 'utilities/main';
+    import {
+        getRequestError,
+        isRequestErrored,
+        sendPostRequest,
+    } from 'utilities/main';
 
     let codeInput: HTMLInputElement;
     let passwordInput: HTMLInputElement;
 
-    let code: string;
-    let password: string;
+    let code = '';
+    let password = '';
+    let errorMessage: string;
 
+    let processing = false;
     let mountReady = false;
 
     onMount(() => {
-        initSocket();
-
         setTimeout(() => {
             codeInput.addEventListener('keydown', (e) => {
                 if (e.key == 'Enter') reset();
@@ -31,236 +44,69 @@
         mountReady = true;
     });
 
-    function reset(): void {
+    async function reset() {
         if (!code || !password) return;
 
-        socket.emit(
-            'resetPasswordVerify',
-            {
-                code: code ? code : '',
-                password: password ? password : '',
-            },
-            async ({ err }) => {
-                if (err) {
-                    if (err.msg.toLowerCase().includes('code')) {
-                        setTimeout(() => {
-                            codeInput.style.border = '2px solid red';
-                        }, 0);
-                    } else {
-                        setTimeout(() => {
-                            passwordInput.style.border = '2px solid red';
-                        }, 0);
-                    }
+        processing = true;
 
-                    return;
-                }
-
-                $promotedToRVerify = false;
-
-                goto('/login', {
-                    replaceState: true,
-                });
-            }
+        const res = await sendPostRequest(
+            'reset/verify',
+            { email: $resetVerifyEmail, newPassword: password, code },
+            true
         );
+
+        if (isRequestErrored(res)) {
+            errorMessage = getRequestError(res);
+
+            processing = false;
+        } else {
+            $promotedToRVerify = false;
+
+            goto('/auth?for=login', {
+                replaceState: true,
+            });
+        }
     }
 </script>
 
 {#if mountReady}
-    <div
-        class="main-container"
-        in:fly={{
-            duration: 500,
-            y: 50,
-            opacity: 0,
-            easing: quartOut,
-            delay: 250,
-        }}
+    <Card
+        class="xs:w-[300px] fixed top-0 right-0 left-0 bottom-0 m-auto w-[400px] h-max"
     >
-        <h1 id="top">Account setup</h1>
-        <h1 id="descriptor">Check your email for a password reset code.</h1>
+        <CardHeader>
+            <CardTitle>Password reset verification</CardTitle>
+            <CardDescription
+                >Finish resetting your Fronvo account password</CardDescription
+            >
+        </CardHeader>
+        <CardContent class="space-y-2">
+            <div class="space-y-1">
+                {#if errorMessage}
+                    <h1 class="text-destructive font-semibold mb-4 text-sm">
+                        {errorMessage}
+                    </h1>
+                {/if}
 
-        <div class="credentials-container">
-            <h1 id="input-descriptor">Verification code</h1>
-            <input
-                bind:this={codeInput}
-                class="modal-input"
-                type="text"
-                maxlength={6}
-                bind:value={code}
-            />
+                <Label for="email">Verification code</Label>
+                <Input bind:value={code} disabled={processing} maxlength={6} />
+            </div>
+            <div class="space-y-1">
+                <Label for="password">New account password</Label>
 
-            <h1 id="input-descriptor">New password</h1>
-            <input
-                bind:this={passwordInput}
-                class="modal-input"
-                type="password"
-                bind:value={password}
-            />
-        </div>
-
-        <button id="login" on:click={reset}>Reset password</button>
-    </div>
+                <Input
+                    bind:value={password}
+                    disabled={processing}
+                    type="password"
+                />
+            </div>
+        </CardContent>
+        <CardFooter>
+            <Button
+                disabled={code.length !== 6 ||
+                    password.length < 8 ||
+                    processing}
+                on:click={reset}>Finish setup</Button
+            >
+        </CardFooter>
+    </Card>
 {/if}
-
-<style>
-    .main-container {
-        position: fixed;
-        width: max-content;
-        height: max-content;
-        margin: auto;
-        top: 0;
-        right: 15px;
-        left: 15px;
-        bottom: 0;
-        padding: 30px;
-        padding-bottom: 20px;
-        border-radius: 5px;
-        display: flex;
-        align-items: center;
-        flex-direction: column;
-        z-index: 0;
-        user-select: none;
-    }
-
-    .credentials-container {
-        display: flex;
-        flex-direction: column;
-        align-items: start;
-    }
-
-    #top {
-        font-size: 3rem;
-        font-weight: 600;
-        text-align: center;
-        margin: 0;
-        color: white;
-    }
-
-    #descriptor {
-        font-size: 1.25rem;
-        margin: 0;
-        margin-bottom: 30px;
-        color: white;
-    }
-
-    #input-descriptor {
-        margin: 0;
-        font-size: 1.1rem;
-        font-weight: 800;
-        text-transform: uppercase;
-        color: white;
-    }
-
-    input {
-        width: 450px;
-        font-size: 1.3rem;
-        margin-top: 5px;
-        padding: 7px;
-        padding-left: 5px;
-        padding-right: 5px;
-        color: white;
-        background: rgb(255, 255, 255, 0.075);
-        border: 2px solid transparent;
-        transition: 150ms border;
-    }
-
-    input:focus {
-        border: 2px solid white;
-    }
-
-    button {
-        width: 450px;
-        font-size: 1.6rem;
-        margin-top: 15px;
-        background: transparent;
-        backdrop-filter: blur(10px);
-        border-radius: 5px;
-        background: rgb(255, 255, 255, 0.075);
-        box-shadow: 0 0 100px rgb(15, 15, 15);
-        box-shadow: none;
-        transition: 150ms;
-        color: white;
-    }
-
-    button:hover {
-        background: rgb(255, 255, 255, 0.15);
-        color: white;
-    }
-
-    button:active {
-        opacity: 0.8;
-    }
-
-    button:disabled {
-        opacity: 0.5;
-    }
-
-    @media screen and (max-width: 1050px) {
-        .main-container {
-            width: 100%;
-            height: 100%;
-            padding: 0;
-            margin: 0;
-            left: 0;
-            right: 0;
-            top: 0;
-            bottom: 0;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
-        }
-
-        .credentials-container {
-            width: initial;
-        }
-    }
-
-    @media screen and (max-width: 850px) {
-        #top {
-            font-size: 2.5rem;
-        }
-
-        #descriptor {
-            font-size: 1.1rem;
-        }
-
-        #input-descriptor {
-            font-size: 1rem;
-        }
-
-        input {
-            font-size: 1.15rem;
-            margin-left: 0;
-        }
-
-        button {
-            font-size: 1.4rem;
-        }
-    }
-
-    @media screen and (max-width: 600px) {
-        #top {
-            font-size: 1.7rem;
-        }
-
-        #descriptor {
-            font-size: 0.8rem;
-        }
-
-        #input-descriptor {
-            font-size: 0.8rem;
-        }
-
-        input {
-            width: 300px;
-            font-size: 0.9rem;
-        }
-
-        button {
-            width: 300px;
-            font-size: 0.9rem;
-            margin-left: 0;
-            margin-right: 5px;
-        }
-    }
-</style>

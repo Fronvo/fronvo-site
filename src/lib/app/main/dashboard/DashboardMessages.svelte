@@ -7,7 +7,10 @@
     import ServerPanel from '$lib/app/reusables/side/ServerPanel.svelte';
 </script>
 
-<div class="main-container" in:fade={{ duration: 200, easing: sineInOut }}>
+<div
+    class="main-containe flex h-screen"
+    in:fade={{ duration: 200, easing: sineInOut }}
+>
     <ServersList />
 
     {#if !$isInServer}
@@ -16,17 +19,3 @@
         <ServerPanel />
     {/if}
 </div>
-
-<style>
-    .main-container {
-        display: flex;
-        flex-direction: row;
-        align-items: start;
-        justify-content: start;
-        margin: auto;
-        width: 100%;
-        height: calc(100% - 115px);
-        margin-top: 0;
-        overflow: hidden;
-    }
-</style>

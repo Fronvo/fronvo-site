@@ -1,16 +1,14 @@
-export type LocalKeys =
-    | 'token'
-    | 'darkTheme'
-    | 'revealNav'
-    | 'savedAccounts'
-    | 'bW'
-    | 'bDW'
-    | 'bD'
-    | 'bDD';
+export type LocalKeys = 'savedAccounts';
 
 export enum DashboardOptions {
-    Dashboard,
+    Home,
     Profile,
     Friends,
     Messages,
+}
+
+export enum DashboardFriendTab {
+    All,
+    Online,
+    Pending,
 }

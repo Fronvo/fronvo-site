@@ -1,60 +1,160 @@
 <script lang="ts">
-    import { ModalTypes } from 'stores/modals';
-    import { showModal } from 'utilities/main';
+    import { goto } from '$app/navigation';
+    import Button from '$lib/components/ui/button/button.svelte';
+    import {
+        Dialog,
+        DialogClose,
+        DialogContent,
+        DialogDescription,
+        DialogTitle,
+        DialogTrigger,
+    } from '$lib/components/ui/dialog';
+    import Input from '$lib/components/ui/input/input.svelte';
+    import { Link1 } from 'radix-icons-svelte';
+    import {
+        currentChannel,
+        currentRoomData,
+        currentRoomId,
+        currentRoomLoaded,
+        currentRoomMessages,
+        currentServer,
+        isInServer,
+        serversList,
+    } from 'stores/rooms';
+    import {
+        getRequestError,
+        isRequestErrored,
+        sendPostRequest,
+        setTitle,
+    } from 'utilities/main';
 
-    function joinServer(): void {
-        showModal(ModalTypes.JoinServer);
+    let open = false;
+    let invite = '';
+    let processing = false;
+    let errorMessage = '';
+
+    async function enterJoinedServer(parsedInvite: string): Promise<void> {
+        const targetServer = $serversList.find(
+            (v) => v.invite === parsedInvite
+        );
+
+        if ($currentServer?.id == targetServer.id) return;
+
+        $isInServer = true;
+        $currentServer = targetServer;
+
+        if (targetServer.channels.length > 0) {
+            const channel = targetServer.channels[0];
+
+            $currentChannel = channel;
+            $currentRoomLoaded = false;
+            $currentRoomLoaded = true;
+            $currentRoomMessages = [];
+
+            goto(
+                `/${encodeURIComponent(parsedInvite)}/${encodeURIComponent(
+                    channel.name
+                )}`
+            );
+
+            setTitle(`#${channel.name} | ${$currentServer.name}`);
+        } else {
+            $currentChannel = undefined;
+            $currentRoomId = undefined;
+            $currentRoomData = undefined;
+
+            $currentRoomMessages = [];
+
+            goto(`/${parsedInvite}`);
+
+            setTitle(targetServer.name);
+        }
+    }
+
+    async function joinServer() {
+        if (!invite) return;
+
+        if (invite.trim().length == 0) {
+            return;
+        }
+
+        let parsedInvite = invite;
+
+        // Handle /invite/abc than straight up invite name
+        if (invite.includes('/')) {
+            parsedInvite = invite.split('/')[2];
+        }
+
+        processing = true;
+
+        const res = await sendPostRequest('servers/join', {
+            invite: parsedInvite,
+        });
+
+        if (isRequestErrored(res)) {
+            const error = getRequestError(res);
+
+            if (error === 'You already are in this server.') {
+                enterJoinedServer(parsedInvite);
+
+                open = false;
+                invite = '';
+            } else {
+                errorMessage = getRequestError(res);
+            }
+
+            processing = false;
+        } else {
+            open = false;
+            processing = false;
+            invite = '';
+        }
     }
 </script>
 
-<div>
-    <svg
-        on:click={joinServer}
-        on:keydown={joinServer}
-        xmlns="http://www.w3.org/2000/svg"
-        width="32"
-        height="32"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        ><path
-            fill="none"
-            stroke-linecap="round"
-            stroke-width="1.5"
-            d="M9 12h6m-6 6H8A6 6 0 0 1 8 6h1m6 0h1a6 6 0 0 1 0 12h-1"
-        /></svg
-    >
-</div>
+<Dialog
+    bind:open
+    onOpenChange={() => {
+        invite = '';
+        errorMessage = '';
+    }}
+>
+    <DialogTrigger asChild>
+        <Button
+            variant="outline"
+            class="min-w-[48px] w-[48px] min-h-[48px] h-[48px] rounded-full mt-2"
+            size="icon"
+            on:click={() => (open = true)}
+        >
+            <Link1 size={19} />
+        </Button>
+    </DialogTrigger>
 
-<style>
-    div {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: max-content;
-    }
+    <DialogContent>
+        <DialogTitle>Join server</DialogTitle>
+        <DialogDescription
+            >Enter a server using an invite link</DialogDescription
+        >
 
-    svg {
-        width: 48px;
-        height: 48px;
-        padding: 10px;
-        background: var(--primary);
-        border-radius: 20px;
-        cursor: pointer;
-        pointer-events: all;
-        z-index: 2;
-        transition: 125ms;
-        stroke: var(--text);
-        margin-top: 10px;
-    }
+        {#if errorMessage}
+            <h1 class="text-destructive text-sm font-medium">
+                {errorMessage}
+            </h1>
+        {/if}
 
-    svg:hover {
-        background: var(--tertiary);
-        stroke: var(--text);
-        border-radius: 15px;
-    }
+        <Input bind:value={invite} placeholder="/invite/abc" />
 
-    svg:active {
-        transform: translateY(2px);
-    }
-</style>
+        <div class="flex items-center justify-end">
+            <DialogClose disabled={processing}
+                ><Button disabled={processing} variant="outline" class="mr-2"
+                    >Cancel</Button
+                ></DialogClose
+            >
+
+            <Button
+                on:click={joinServer}
+                disabled={processing || invite.length === 0}>Join server</Button
+            >
+        </div>
+    </DialogContent>
+</Dialog>

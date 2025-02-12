@@ -5,34 +5,22 @@ import {
     ourPosts,
     totalOurPosts,
 } from 'stores/dashboard';
-import { socket } from 'stores/main';
+import { sendRequest } from './main';
 
-export async function loadHomePosts(): Promise<Post[]> {
-    return new Promise((resolve) => {
-        socket.emit(
-            'fetchDashboard',
-            { from: '0', to: '20' },
-            ({ dashboard, totalPosts }) => {
-                totalDashboardPosts.set(totalPosts);
-                dashPosts.set(dashboard);
+export async function loadOurPosts(): Promise<Post[]> {
+    const posts = (await sendRequest('me/posts')).posts;
 
-                resolve(dashboard);
-            }
-        );
-    });
+    totalOurPosts.set(posts.length);
+    ourPosts.set(posts);
+
+    return posts;
 }
 
-export async function loadOurPosts(profileId: string): Promise<Post[]> {
-    return new Promise((resolve) => {
-        socket.emit(
-            'fetchProfilePosts',
-            { profileId, from: '0', to: '20' },
-            ({ profilePosts, totalPosts }) => {
-                totalOurPosts.set(totalPosts);
-                ourPosts.set(profilePosts);
+export async function loadHomePosts(): Promise<Post[]> {
+    const homePosts = (await sendRequest('me/home')).homePosts;
 
-                resolve(profilePosts);
-            }
-        );
-    });
+    totalDashboardPosts.set(homePosts.length);
+    dashPosts.set(homePosts);
+
+    return homePosts;
 }

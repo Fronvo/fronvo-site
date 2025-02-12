@@ -1,4 +1,8 @@
 <script lang="ts">
+    import { Button } from '$lib/components/ui/button';
+    import { DialogClose, DialogTitle } from '$lib/components/ui/dialog';
+    import { Sheet, SheetTrigger } from '$lib/components/ui/sheet';
+    import SheetContent from '$lib/components/ui/sheet/sheet-content.svelte';
     import {
         differenceInDays,
         differenceInHours,
@@ -7,23 +11,13 @@
         differenceInYears,
     } from 'date-fns';
     import type { Post } from 'interfaces/all';
-    import { DropdownTypes } from 'stores/dropdowns';
-    import { cachedAccountData, mousePos, socket } from 'stores/main';
-    import {
-        ModalTypes,
-        targetImageModal,
-        targetPostModal,
-        targetProfileModal,
-    } from 'stores/modals';
+    import { cachedAccountData } from 'stores/main';
+    import { targetProfileModal, viewingProfile } from 'stores/modals';
     import { onDestroy, onMount } from 'svelte';
-    import {
-        findCachedAccount,
-        showDropdownMouse,
-        showModal,
-    } from 'utilities/main';
+    import Time from 'svelte-time/src/Time.svelte';
+    import { findCachedAccount } from 'utilities/main';
 
     export let post: Post;
-    export let isPreview = false;
 
     let postData = post.post;
     let profileData = post.profileData;
@@ -60,29 +54,13 @@
         }
     }
 
-    function showOptions(): void {
-        $targetImageModal = postData.attachment;
-
-        showDropdownMouse(DropdownTypes.Image, $mousePos);
-    }
-
-    function showImage(): void {
-        if (isPreview) return;
-
-        $targetImageModal = postData.attachment;
-
-        showModal(ModalTypes.Image);
-    }
-
     async function showProfile(): Promise<void> {
-        if (isPreview) return;
-
         $targetProfileModal = await findCachedAccount(
-            postData.author,
+            postData.profile_id,
             $cachedAccountData
         );
 
-        showModal(ModalTypes.Profile);
+        $viewingProfile = true;
     }
 
     function likePost(): void {
@@ -97,15 +75,9 @@
             postData.totalLikes += 1;
         }
 
-        socket.emit('likePost', {
-            postId: postData.postId,
-        });
-    }
-
-    function sharePost(): void {
-        $targetPostModal = post;
-
-        showModal(ModalTypes.SharePost);
+        // socket.emit('likePost', {
+        //     postId: postData.postId,
+        // });
     }
 
     onMount(() => {
@@ -114,68 +86,85 @@
 
         img.onload = () => (preloaded = true);
 
-        if (isPreview) return;
-
-        socket.on('postLikesChanged', ({ postId, likes }) => {
-            if (postData.postId == postId) {
-                postData.totalLikes = likes;
-            }
-        });
+        // socket.on('postLikesChanged', ({ postId, likes }) => {
+        //     if (postData.postId == postId) {
+        //         postData.totalLikes = likes;
+        //     }
+        // });
     });
 
     onDestroy(() => (preloaded = false));
 
-    $: updateSuffix(postData.creationDate);
+    $: updateSuffix(postData.posted_at);
 </script>
 
-<div
-    class={`post-container ${!preloaded ? 'preloading' : ''} ${
-        isPreview ? 'preview' : ''
-    }`}
->
-    <div class="top">
+<div class={`pb-[50px] ${!preloaded ? 'hidden' : ''}`}>
+    <div class="flex items-center justify-start w-full mb-3">
         <img
             on:click={showProfile}
             on:keydown={showProfile}
-            id="avatar"
             src={profileData.avatar
                 ? `${profileData.avatar}/tr:w-72:h-72`
-                : '/images/avatar.png'}
+                : '/images/avatar.svg'}
             draggable={false}
             alt={`${postData.author}\'s avatar'`}
+            class="w-[32px] h-[32px] rounded-full mr-2"
         />
-        <h1 id="name">{postData.author}</h1>
 
-        <h1 id="time">• {dateSuffix}</h1>
+        <h1 class="text-sm mr-1 tracking-tight font-bold mb-0.5">
+            {postData.profile_id}
+        </h1>
+
+        <h1 class="text-xs font-light">• {dateSuffix}</h1>
     </div>
 
     <!-- Ambiency in the future? -->
-    <img
-        class="attachment"
-        src={`${post.post.attachment}/tr:w-1000:h-1000:pr-true`}
-        on:click={showImage}
-        on:keydown={showImage}
-        on:contextmenu={(ev) => {
-            if (isPreview) return;
+    <Sheet>
+        <SheetTrigger class="flex w-max mr-auto">
+            <img
+                class="border-primary/1 border-[1px] rounded-md w-[500px] h-[500px] object-contain"
+                src={`${post.post.attachment}/tr:pr-true`}
+                draggable={false}
+                alt={`${post.profileData.id}\'s post'`}
+            />
+        </SheetTrigger>
 
-            showOptions();
+        <SheetContent
+            side="bottom"
+            class="w-max min-w-[35vw] m-auto border-accent border-[1px] rounded-t-xl pr-10 pl-10"
+        >
+            <DialogTitle>
+                {postData.profile_id} •
+                <Time
+                    format={'MMMM DD, YYYY'}
+                    timestamp={postData.posted_at}
+                /></DialogTitle
+            >
 
-            ev.preventDefault();
-        }}
-        draggable={false}
-        alt={`${post.profileData.profileId}\'s post'`}
-    />
+            <img
+                src={postData.attachment}
+                class="max-h-[80vh] rounded-xl object-cover m-auto mt-2"
+                alt="Attachment"
+            />
 
-    <div class="action">
+            <div class="flex gap-x-2 flex-1 mt-4">
+                <DialogClose
+                    ><Button variant="outline">Close</Button></DialogClose
+                >
+            </div>
+        </SheetContent>
+    </Sheet>
+
+    <div class="flex w-full items-center justify-start mt-2">
         {#if postData.isLiked}
             <svg
                 on:click={likePost}
                 on:keydown={likePost}
-                id="like"
                 xmlns="http://www.w3.org/2000/svg"
                 width="32"
                 height="32"
                 viewBox="0 0 48 48"
+                class="cursor-pointer w-[28px] h-[28px] mr-2"
                 ><path
                     fill="red"
                     stroke="red"
@@ -189,11 +178,9 @@
             <svg
                 on:click={likePost}
                 on:keydown={likePost}
-                id="like"
                 xmlns="http://www.w3.org/2000/svg"
-                width="32"
-                height="32"
                 viewBox="0 0 48 48"
+                class="cursor-pointer w-[28px] h-[28px] mr-2"
                 ><path
                     fill="none"
                     stroke="red"
@@ -205,7 +192,7 @@
             >
         {/if}
 
-        <h1 id="likes">
+        <h1 class="font-semibold text-sm">
             {postData.totalLikes} like{postData.totalLikes != 1 ? 's' : ''}
         </h1>
 
@@ -228,134 +215,3 @@
         > -->
     </div>
 </div>
-
-<style>
-    .post-container {
-        width: 500px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        padding-top: 50px;
-        padding-bottom: 50px;
-        border-bottom: 1px solid var(--tertiary);
-        margin-right: 20px;
-        margin-left: 20px;
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: cover;
-        transition: 100ms filter, 100ms background;
-        user-select: none;
-    }
-
-    .preloading {
-        visibility: hidden;
-    }
-
-    .preview {
-        border: none;
-    }
-
-    .top {
-        display: flex;
-        align-items: center;
-        width: 100%;
-        margin-bottom: 5px;
-    }
-
-    h1 {
-        margin: 0;
-    }
-
-    #avatar {
-        width: 32px;
-        height: 32px;
-        border-radius: 100px;
-        margin-right: 10px;
-        cursor: pointer;
-    }
-
-    .preview #avatar {
-        cursor: default;
-    }
-
-    #name {
-        font-size: 1rem;
-        font-weight: 700;
-        margin-right: 2px;
-        margin-top: 2px;
-    }
-
-    #time {
-        font-size: 0.85rem;
-        color: var(--gray);
-        flex: 1;
-        margin-top: 4px;
-    }
-
-    .attachment {
-        min-width: 100%;
-        max-width: 100%;
-        max-height: 90%;
-        cursor: pointer;
-        border: 1px solid var(--primary);
-        border-radius: 5px;
-    }
-
-    .preview .attachment {
-        cursor: default;
-    }
-
-    h1 {
-        font-size: 1.5rem;
-        color: var(--text);
-        margin: 0;
-        transform: translateY(-2px);
-    }
-
-    .action {
-        width: 99%;
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        margin-top: 5px;
-    }
-
-    .preview .action {
-        display: none;
-    }
-
-    svg {
-        width: 30px;
-        height: 30px;
-        transition: 175ms;
-        margin-right: 7px;
-    }
-
-    svg:active {
-        transform: scale(0.95);
-        opacity: 0.75;
-    }
-
-    #likes {
-        opacity: 0;
-        font-size: 1.05rem;
-        font-weight: 600;
-        margin-top: 5px;
-        flex: 1;
-        letter-spacing: 0.1px;
-    }
-
-    @media screen and (max-width: 850px) {
-        .post-container {
-            width: 275px;
-        }
-
-        #name {
-            font-size: 0.9rem;
-        }
-
-        #time {
-            font-size: 0.75rem;
-        }
-    }
-</style>

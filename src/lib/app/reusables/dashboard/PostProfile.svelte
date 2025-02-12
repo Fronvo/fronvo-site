@@ -1,35 +1,42 @@
 <script lang="ts">
+    import { Button } from '$lib/components/ui/button';
+    import {
+        DialogContent,
+        DialogClose,
+        DialogTrigger,
+        Dialog,
+        DialogDescription,
+        DialogTitle,
+    } from '$lib/components/ui/dialog';
+    import {
+        Sheet,
+        SheetClose,
+        SheetTitle,
+        SheetTrigger,
+    } from '$lib/components/ui/sheet';
+    import SheetContent from '$lib/components/ui/sheet/sheet-content.svelte';
     import type { Post } from 'interfaces/all';
-    import {
-        DropdownTypes,
-        currentDropdownId,
-        dropdownVisible,
-    } from 'stores/dropdowns';
-    import { mousePos } from 'stores/main';
-    import {
-        ModalTypes,
-        targetImageModal,
-        targetPostModal,
-    } from 'stores/modals';
+    import { Trash } from 'radix-icons-svelte';
+    import { disconnected } from 'stores/main';
     import { onMount } from 'svelte';
-    import { showDropdownMouse, showModal } from 'utilities/main';
+    import Time from 'svelte-time/src/Time.svelte';
 
     export let post: Post;
     let postContainer: HTMLDivElement;
 
     let postData = post.post;
+    let open = false;
 
-    function showImage(): void {
-        $targetImageModal = postData.attachment;
-
-        showModal(ModalTypes.Image);
-    }
-
-    function showOptions(): void {
-        $targetImageModal = postData.attachment;
-        $targetPostModal = post;
-
-        showDropdownMouse(DropdownTypes.Post, $mousePos);
+    function deletePost() {
+        // socket.emit(
+        //     'deletePost',
+        //     {
+        //         postId: postData.postId,
+        //     },
+        //     async () => {
+        //         open = false;
+        //     },
+        // );
     }
 
     onMount(() => {
@@ -43,106 +50,85 @@
     $: postData = post.post;
 </script>
 
-<div
-    class={`post-container ${
-        ($targetPostModal?.post == postData &&
-            $dropdownVisible &&
-            $currentDropdownId == DropdownTypes.Post) ||
-        ($dropdownVisible && $currentDropdownId == DropdownTypes.Account)
-            ? 'active'
-            : ''
-    }`}
-    bind:this={postContainer}
-    on:click={showImage}
-    on:keydown={showImage}
-    on:contextmenu={(e) => {
-        showOptions();
+<Sheet bind:open onOpenChange={(e) => (open = e)}>
+    <SheetTrigger class="mr-1 ml-1"
+        ><div
+            class={`group flex w-[200px] h-[200px] items-center justify-center bg-no-repeat bg-cover bg-center mb-2 cursor-pointer`}
+            bind:this={postContainer}
+        >
+            <div
+                class="opacity-0 group-hover:opacity-100 group-hover:backdrop-brightness-[40%] flex items-center h-full w-full text-center justify-center"
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 48 48"
+                    fill="white"
+                    stroke="white"
+                    class="w-[24px] h-[24px] mr-2 fill-text stroke-text"
+                    ><path
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        stroke-width="4"
+                        d="M15 8C8.925 8 4 12.925 4 19c0 11 13 21 20 23.326C31 40 44 30 44 19c0-6.075-4.925-11-11-11c-3.72 0-7.01 1.847-9 4.674A10.987 10.987 0 0 0 15 8"
+                    /></svg
+                >
 
-        e.preventDefault();
-    }}
->
-    <div class="wrapper">
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="32"
-            height="32"
-            viewBox="0 0 48 48"
-            fill="currentColor"
-            stroke="currentColor"
-            ><path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="4"
-                d="M15 8C8.925 8 4 12.925 4 19c0 11 13 21 20 23.326C31 40 44 30 44 19c0-6.075-4.925-11-11-11c-3.72 0-7.01 1.847-9 4.674A10.987 10.987 0 0 0 15 8"
-            /></svg
+                <h1 class="text-lg font-semibold text-white">
+                    {postData.totalLikes}
+                </h1>
+            </div>
+        </div>
+    </SheetTrigger>
+
+    <SheetContent
+        side="bottom"
+        class="w-max min-w-none m-auto border-accent border-[1px] rounded-t-xl pr-10 pl-10"
+    >
+        <SheetTitle
+            ><Time
+                format={'MMMM DD, YYYY HH:mm'}
+                timestamp={postData.creationDate}
+            /></SheetTitle
         >
 
-        <h1>{postData.totalLikes}</h1>
-    </div>
-</div>
+        <img
+            src={postData.attachment}
+            class="max-h-[80vh] rounded-xl object-cover m-auto mt-2"
+            alt="Attachment"
+        />
 
-<style>
-    .post-container {
-        width: 250px;
-        height: 250px;
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 3px;
-        margin-left: 2px;
-        margin-right: 2px;
-        overflow: hidden;
-        background-repeat: no-repeat;
-        background-position: center;
-        background-size: cover;
-        cursor: pointer;
-        transition: 150ms filter, 150ms background;
-    }
+        <div class="flex gap-x-2 flex-1 mt-4">
+            <SheetClose><Button variant="outline">Close</Button></SheetClose>
 
-    .wrapper {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 100%;
-        height: 100%;
-        transition: 125ms;
-        opacity: 0;
-        backdrop-filter: brightness(50%);
-    }
+            <span class="flex-1" />
 
-    .post-container:hover .wrapper {
-        opacity: 1;
-    }
+            <Dialog>
+                <DialogTrigger disabled={$disconnected}>
+                    <Button disabled={$disconnected} variant="destructive"
+                        ><Trash class="mr-2" /> Delete</Button
+                    >
+                </DialogTrigger>
 
-    .active:hover .wrapper {
-        opacity: 0;
-    }
+                <DialogContent>
+                    <DialogTitle>Delete post?</DialogTitle>
+                    <DialogDescription
+                        >This cannot be reversed.</DialogDescription
+                    >
 
-    .active {
-        filter: brightness(50%);
-    }
+                    <div class="flex w-full justify-end">
+                        <DialogClose class="mr-2"
+                            ><Button variant="outline">Cancel</Button
+                            ></DialogClose
+                        >
 
-    svg {
-        width: 32px;
-        height: 32px;
-        fill: white;
-        stroke: white;
-        margin-right: 5px;
-    }
-
-    h1 {
-        font-size: 1.4rem;
-        font-weight: 700;
-        color: white;
-        margin: 0;
-        text-shadow: 0 0 5px black;
-    }
-
-    @media screen and (max-width: 850px) {
-        .post-container {
-            width: 125px;
-            height: 125px;
-        }
-    }
-</style>
+                        <DialogClose>
+                            <Button on:click={deletePost} variant="destructive">
+                                Delete</Button
+                            >
+                        </DialogClose>
+                    </div>
+                </DialogContent>
+            </Dialog>
+        </div>
+    </SheetContent>
+</Sheet>

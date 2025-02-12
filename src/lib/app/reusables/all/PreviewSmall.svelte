@@ -5,61 +5,41 @@
     import SmallBanner from '../profile/small/SmallBanner.svelte';
     import SmallIdentifier from '../profile/small/SmallIdentifier.svelte';
     import SmallBio from '../profile/small/SmallBio.svelte';
+    import Separator from '$lib/components/ui/separator/separator.svelte';
 
     export let profileData: FronvoAccount;
 </script>
 
-<div class="profile-container">
+<div class="w-full flex flex-col items-center">
+    <h1 class="text-xs uppercase font-bold pl-2 pt-1 w-full select-none">
+        User Info
+    </h1>
+
+    <Separator class="mt-2" />
+
     <SmallBanner />
     <SmallAvatar
-        profileId={profileData.profileId}
+        profileId={profileData.id}
         avatar={profileData?.avatar}
+        status={profileData?.status}
     />
 
-    <div class="secondary-container">
-        <SmallIdentifier
-            profileId={profileData?.profileId}
-            username={profileData?.username}
-            status={profileData?.status}
-        />
+    <SmallIdentifier
+        profileId={profileData?.id}
+        username={profileData?.username}
+    />
 
-        {#if profileData?.bio}
-            <span class="seperator" />
+    {#if profileData?.id}
+        <div
+            class="w-[90%] bg-secondary/30 rounded-md p-4 mt-3 mb-1 border-accent border-[1px]"
+        >
+            {#if profileData?.bio}
+                <SmallBio bio={profileData?.bio} />
 
-            <SmallBio bio={profileData?.bio} />
-        {/if}
+                <div class="mb-3" />
+            {/if}
 
-        <span class="seperator" />
-
-        <SmallSince since={profileData?.creationDate} />
-    </div>
+            <SmallSince since={profileData?.created_at} />
+        </div>
+    {/if}
 </div>
-
-<style>
-    .profile-container {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-    }
-
-    .secondary-container {
-        width: 95%;
-        display: flex;
-        flex-direction: column;
-        transform: translateY(-30px);
-        padding-top: 10px;
-        padding-bottom: 10px;
-        border-radius: 10px;
-        background: var(--secondary);
-    }
-
-    .seperator {
-        margin: auto;
-        width: 100%;
-        height: 2px;
-        margin-top: 20px;
-        margin-bottom: 20px;
-        background: var(--primary);
-    }
-</style>

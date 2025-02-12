@@ -1,53 +1,65 @@
 <script lang="ts">
-    import { dismissModal } from 'utilities/main';
-    import ModalTemplate from '../ModalTemplate.svelte';
-    import { modalLoading, type ModalData } from 'stores/modals';
-    import { socket } from 'stores/main';
+    import { updatingStatus } from 'stores/modals';
     import { ourData } from 'stores/profile';
-    import { writable } from 'svelte/store';
-    import InfoHeader from '$lib/app/reusables/all/InfoHeader.svelte';
-    import StatusInput from '$lib/app/reusables/status/StatusInput.svelte';
+    import {
+        Dialog,
+        DialogClose,
+        DialogContent,
+    } from '$lib/components/ui/dialog';
+    import DialogTitle from '$lib/components/ui/dialog/dialog-title.svelte';
+    import DialogDescription from '$lib/components/ui/dialog/dialog-description.svelte';
+    import Input from '$lib/components/ui/input/input.svelte';
+    import Button from '$lib/components/ui/button/button.svelte';
+    import { isRequestErrored, sendPostRequest } from 'utilities/main';
 
-    let status = writable($ourData.status);
+    let status = $ourData?.status;
 
-    function setStatus(): void {
-        if ($status.trim().length == 0) {
-            dismissModal();
+    updatingStatus.subscribe((state) => {
+        if (!state) return;
+
+        status = $ourData.status;
+    });
+
+    let updating = false;
+
+    async function setStatus() {
+        if (status.trim().length == 0) {
             return;
         }
 
-        $modalLoading = true;
+        if (status === $ourData.status) {
+            $updatingStatus = false;
+            return;
+        }
 
-        socket.emit(
-            'updateProfileStatus',
-            { status: $status ? $status : '' },
-            ({ err }) => {
-                if (!err) {
-                    $ourData.status = $status;
-                }
+        updating = true;
 
-                dismissModal();
-            }
-        );
+        const res = await sendPostRequest('me/status', { status });
+
+        if (!isRequestErrored(res)) {
+            $ourData.status = status;
+        }
+
+        updating = false;
+
+        $updatingStatus = false;
     }
-
-    const data: ModalData = {
-        title: 'Set a status',
-        actions: [
-            {
-                title: 'Set status',
-                callback: setStatus,
-                primary: true,
-            },
-
-            {
-                title: 'Cancel',
-                callback: dismissModal,
-            },
-        ],
-    };
 </script>
 
-<ModalTemplate {data}>
-    <StatusInput {status} statusCallback={setStatus} />
-</ModalTemplate>
+<Dialog open={$updatingStatus} onOpenChange={(e) => ($updatingStatus = e)}>
+    <DialogContent>
+        <DialogTitle>Set profile status</DialogTitle>
+        <DialogDescription>Visible to everyone for 1 day</DialogDescription>
+
+        <Input bind:value={status} maxlength={30} />
+
+        <div class="flex items-center justify-end">
+            <DialogClose
+                ><Button variant="outline" class="mr-2">Cancel</Button
+                ></DialogClose
+            >
+
+            <Button disabled={updating} on:click={setStatus}>Set status</Button>
+        </div>
+    </DialogContent>
+</Dialog>

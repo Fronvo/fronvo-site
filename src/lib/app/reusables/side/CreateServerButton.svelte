@@ -1,55 +1,89 @@
 <script lang="ts">
-    import { ModalTypes } from 'stores/modals';
-    import { serversList } from 'stores/rooms';
-    import { showModal } from 'utilities/main';
+    import Button from '$lib/components/ui/button/button.svelte';
+    import {
+        Dialog,
+        DialogTrigger,
+        DialogContent,
+        DialogClose,
+        DialogTitle,
+        DialogDescription,
+    } from '$lib/components/ui/dialog';
+    import Input from '$lib/components/ui/input/input.svelte';
+    import { Plus } from 'radix-icons-svelte';
+    import {
+        getRequestError,
+        isRequestErrored,
+        sendPostRequest,
+    } from 'utilities/main';
 
-    function createServer(): void {
-        showModal(ModalTypes.CreateServer);
+    let open = false;
+    let name = '';
+    let processing = false;
+    let errorMessage = '';
+
+    async function createServer() {
+        if (!name) return;
+
+        if (name.trim().length == 0) {
+            return;
+        }
+
+        processing = true;
+
+        const res = await sendPostRequest('servers/create', { name });
+
+        if (isRequestErrored(res)) {
+            errorMessage = getRequestError(res);
+            processing = false;
+        } else {
+            open = false;
+            name = '';
+            processing = false;
+        }
     }
 </script>
 
-<div>
-    <svg
-        on:click={createServer}
-        on:keydown={createServer}
-        xmlns="http://www.w3.org/2000/svg"
-        width="32"
-        height="32"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        ><path d="M11.5 12.5H6v-1h5.5V6h1v5.5H18v1h-5.5V18h-1z" /></svg
-    >
-</div>
+<Dialog
+    bind:open
+    onOpenChange={() => {
+        name = '';
+        errorMessage = '';
+    }}
+>
+    <DialogTrigger asChild>
+        <Button
+            variant="outline"
+            class="min-w-[48px] w-[48px] min-h-[48px] h-[48px] rounded-full mt-1"
+            size="icon"
+            on:click={() => (open = true)}
+        >
+            <Plus size={19} />
+        </Button>
+    </DialogTrigger>
 
-<style>
-    div {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: max-content;
-    }
+    <DialogContent>
+        <DialogTitle>Create server</DialogTitle>
+        <DialogDescription>Start a new community on Fronvo</DialogDescription>
 
-    svg {
-        width: 48px;
-        height: 48px;
-        padding: 10px;
-        background: var(--primary);
-        border-radius: 20px;
-        cursor: pointer;
-        pointer-events: all;
-        z-index: 2;
-        transition: 125ms;
-        stroke: var(--text);
-    }
+        {#if errorMessage}
+            <h1 class="text-destructive text-sm font-medium">
+                {errorMessage}
+            </h1>
+        {/if}
 
-    svg:hover {
-        background: var(--tertiary);
-        stroke: var(--text);
-        border-radius: 15px;
-    }
+        <Input bind:value={name} placeholder="Server name" />
 
-    svg:active {
-        transform: translateY(2px);
-    }
-</style>
+        <div class="flex items-center justify-end">
+            <DialogClose disabled={processing}
+                ><Button disabled={processing} variant="outline" class="mr-2"
+                    >Cancel</Button
+                ></DialogClose
+            >
+
+            <Button
+                on:click={createServer}
+                disabled={processing || name.length === 0}>Create server</Button
+            >
+        </div>
+    </DialogContent>
+</Dialog>

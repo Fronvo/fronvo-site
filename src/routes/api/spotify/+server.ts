@@ -1,3 +1,8 @@
+import { GENERAL_SECRET, SPOTIFY_CLIENT_SECRET } from '$env/static/private';
+import {
+    PUBLIC_FRONVO_API_URL,
+    PUBLIC_SPOTIFY_CLIENT_ID,
+} from '$env/static/public';
 import { json } from '@sveltejs/kit';
 import queryString from 'querystring';
 import { io } from 'socket.io-client';
@@ -27,9 +32,7 @@ export async function POST({ request, url }) {
         headers: {
             'content-type': 'application/x-www-form-urlencoded',
             Authorization: `Basic ${btoa(
-                `${import.meta.env.VITE_SPOTIFY_CLIENT_ID}:${
-                    import.meta.env.VITE_SPOTIFY_CLIENT_SECRET
-                }`
+                `${PUBLIC_SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`
             )}`,
         },
     });
@@ -39,7 +42,7 @@ export async function POST({ request, url }) {
     if (!res.ok) {
         return json('500');
     }
-    const client = io(SERVER_URL, {
+    const client = io(PUBLIC_FRONVO_API_URL, {
         transports: ['websocket'],
         path: '/fronvo',
     });
@@ -65,7 +68,7 @@ export async function POST({ request, url }) {
                             client.emit(
                                 'updateConnectionSpotify',
                                 {
-                                    secret: import.meta.env.VITE_GENERAL_SECRET,
+                                    secret: GENERAL_SECRET,
                                     name: info.display_name,
                                     url: info.external_urls.spotify,
                                     refreshToken: jsonRes.refresh_token,

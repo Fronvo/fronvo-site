@@ -1,38 +1,50 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
-    import type { Channel } from 'interfaces/all';
+    import Button from '$lib/components/ui/button/button.svelte';
     import {
-        DropdownTypes,
-        currentDropdownId,
-        dropdownVisible,
-    } from 'stores/dropdowns';
-    import { mousePos, socket } from 'stores/main';
-    import { targetChannelModal } from 'stores/modals';
+        ContextMenu,
+        ContextMenuContent,
+        ContextMenuItem,
+        ContextMenuSeparator,
+        ContextMenuTrigger,
+    } from '$lib/components/ui/context-menu';
+    import {
+        Dialog,
+        DialogClose,
+        DialogContent,
+        DialogDescription,
+        DialogTitle,
+    } from '$lib/components/ui/dialog';
+    import Input from '$lib/components/ui/input/input.svelte';
+    import type { Channel } from 'interfaces/all';
     import { ourData } from 'stores/profile';
     import {
-        channelRenamingId,
         currentChannel,
         currentRoomLoaded,
         currentRoomMessages,
         currentServer,
     } from 'stores/rooms';
-    import { onDestroy, onMount } from 'svelte';
+    import { onDestroy } from 'svelte';
     import type { Unsubscriber } from 'svelte/motion';
-    import { setTitle, showDropdownMouse } from 'utilities/main';
+    import {
+        sendDeleteRequest,
+        sendPostRequest,
+        setTitle,
+    } from 'utilities/main';
 
     export let channel: Channel;
 
-    let newName: string;
-    let isRenaming = false;
+    let renaming = false;
+    let newName = channel.name;
 
-    let inputContainer: HTMLInputElement;
+    let deleting = false;
+
+    let processing = false;
 
     let unsubscribe: Unsubscriber;
 
-    function enterChannel(): void {
-        if (isRenaming) return;
-
-        if ($currentChannel?.channelId == channel.channelId) return;
+    function enterChannel() {
+        if ($currentChannel?.id == channel.id) return;
 
         $currentChannel = channel;
         $currentRoomLoaded = false;
@@ -48,207 +60,190 @@
         setTitle(`#${channel.name} | ${$currentServer.name}`);
     }
 
-    function showChannelOptions(): void {
-        if (isRenaming) return;
+    async function renameChannel() {
+        if (newName.trim() === channel.name) {
+            renaming = false;
 
-        $targetChannelModal = channel;
-
-        showDropdownMouse(DropdownTypes.Channel, $mousePos);
-    }
-
-    function renameChannel(): void {
-        $channelRenamingId = undefined;
-
-        setTimeout(() => {
-            isRenaming = false;
-        }, 50);
-
-        if (newName.trim() == channel.name) {
             return;
         }
 
         if (newName.trim().length == 0) {
             newName = channel.name;
 
+            renaming = false;
+
             return;
         }
 
-        channel.name = newName;
+        processing = true;
 
-        // Update current channel too
-        if ($currentChannel?.channelId == channel.channelId) {
-            $currentChannel = undefined;
-        }
-
-        socket.emit('renameChannel', {
-            serverId: $currentServer.serverId,
-            channelId: channel.channelId,
+        await sendPostRequest('channels/edit', {
+            id: $currentServer.id,
+            channelId: channel.id,
             name: newName,
         });
+
+        processing = false;
+        renaming = false;
     }
 
-    onMount(() => {
-        unsubscribe = channelRenamingId.subscribe((id) => {
-            if (!id || id != channel.channelId) return;
+    async function deleteChannel() {
+        processing = true;
 
-            if (inputContainer) {
-                newName = channel.name;
-
-                isRenaming = true;
-
-                setTimeout(() => {
-                    inputContainer.focus();
-
-                    inputContainer.onkeydown = (ev) => {
-                        if (ev.key == 'Escape') {
-                            newName = channel.name;
-                            $channelRenamingId = undefined;
-                        } else if (ev.key == 'Enter') renameChannel();
-                    };
-
-                    inputContainer.onblur = renameChannel;
-                }, 50);
-            }
+        await sendDeleteRequest('channels/delete', {
+            id: $currentServer.id,
+            channelId: channel.id,
         });
-    });
+
+        processing = false;
+        deleting = false;
+    }
 
     onDestroy(() => {
         if (unsubscribe) unsubscribe();
     });
 </script>
 
-<div
-    class={`prop-container ${
-        ($currentChannel && $currentChannel?.channelId == channel.channelId) ||
-        ($targetChannelModal?.channelId == channel.channelId &&
-            $dropdownVisible &&
-            $currentDropdownId == DropdownTypes.Channel)
-            ? 'active'
-            : ''
-    } ${$channelRenamingId == channel.channelId ? 'renaming' : ''}`}
-    on:click={enterChannel}
-    on:keydown={enterChannel}
-    on:contextmenu={(ev) => {
-        if ($ourData.profileId != $currentServer.ownerId) return;
+{#if $currentServer?.owner_id === $ourData.id}
+    <ContextMenu>
+        <ContextMenuTrigger class="w-[94%] mb-2 ml-3">
+            <Button
+                variant="ghost"
+                class={`h-[34px] w-full duration-0 flex pl-2 pr-2 justify-start prop-container ${
+                    $currentChannel && $currentChannel?.id == channel.id
+                        ? 'bg-accent border-accent'
+                        : ''
+                }`}
+                on:click={enterChannel}
+                on:keydown={enterChannel}
+            >
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="32"
+                    height="32"
+                    viewBox="0 0 24 24"
+                    class="w-[18px] h-[18px] mr-2"
+                    ><path
+                        fill="currentColor"
+                        fill-rule="evenodd"
+                        d="M10.723 3.2a.75.75 0 1 0-1.446-.4L7.763 8.25H4a.75.75 0 1 0 0 1.5h3.347l-1.528 5.5H2a.75.75 0 0 0 0 1.5h3.402L4.277 20.8a.75.75 0 0 0 1.446.4l1.236-4.45h7.443l-1.125 4.05a.75.75 0 0 0 1.446.4l1.236-4.45H20a.75.75 0 1 0 0-1.5h-3.624l1.527-5.5H22a.75.75 0 0 0 0-1.5h-3.68l1.403-5.05a.75.75 0 1 0-1.446-.4l-1.514 5.45H9.32zm4.096 12.05l1.528-5.5H8.903l-1.527 5.5z"
+                        clip-rule="evenodd"
+                    /></svg
+                >
 
-        showChannelOptions();
+                <h1 class="text-[0.8rem]">{channel.name}</h1>
+            </Button>
+        </ContextMenuTrigger>
 
-        ev.preventDefault();
+        <ContextMenuContent class="w-[150px]">
+            <ContextMenuItem
+                on:click={() => {
+                    renaming = true;
+                    newName = channel.name;
+                }}>Rename</ContextMenuItem
+            >
+
+            <ContextMenuSeparator />
+
+            <ContextMenuItem on:click={() => (deleting = true)}
+                >Delete</ContextMenuItem
+            >
+        </ContextMenuContent>
+    </ContextMenu>
+{:else}
+    <Button
+        variant="outline"
+        class={`mb-2 ml-3 h-[34px] w-[94%] duration-0 flex pl-2 pr-2 justify-start prop-container ${
+            $currentChannel && $currentChannel?.id == channel.id
+                ? 'bg-accent border-accent'
+                : ''
+        }`}
+        on:click={enterChannel}
+        on:keydown={enterChannel}
+    >
+        <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="32"
+            height="32"
+            viewBox="0 0 24 24"
+            class="w-[18px] h-[18px] mr-2"
+            ><path
+                fill="currentColor"
+                fill-rule="evenodd"
+                d="M10.723 3.2a.75.75 0 1 0-1.446-.4L7.763 8.25H4a.75.75 0 1 0 0 1.5h3.347l-1.528 5.5H2a.75.75 0 0 0 0 1.5h3.402L4.277 20.8a.75.75 0 0 0 1.446.4l1.236-4.45h7.443l-1.125 4.05a.75.75 0 0 0 1.446.4l1.236-4.45H20a.75.75 0 1 0 0-1.5h-3.624l1.527-5.5H22a.75.75 0 0 0 0-1.5h-3.68l1.403-5.05a.75.75 0 1 0-1.446-.4l-1.514 5.45H9.32zm4.096 12.05l1.528-5.5H8.903l-1.527 5.5z"
+                clip-rule="evenodd"
+            /></svg
+        >
+
+        <h1 class="text-[0.8rem]">{channel.name}</h1>
+    </Button>
+{/if}
+
+<Dialog
+    bind:open={renaming}
+    onOpenChange={(e) => {
+        renaming = e;
+        newName = channel.name;
     }}
 >
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        width="32"
-        height="32"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        ><path
-            fill-rule="evenodd"
-            d="M10.723 3.2a.75.75 0 1 0-1.446-.4L7.763 8.25H4a.75.75 0 1 0 0 1.5h3.347l-1.528 5.5H2a.75.75 0 0 0 0 1.5h3.402L4.277 20.8a.75.75 0 0 0 1.446.4l1.236-4.45h7.443l-1.125 4.05a.75.75 0 0 0 1.446.4l1.236-4.45H20a.75.75 0 1 0 0-1.5h-3.624l1.527-5.5H22a.75.75 0 0 0 0-1.5h-3.68l1.403-5.05a.75.75 0 1 0-1.446-.4l-1.514 5.45H9.32l1.403-5.05Zm4.096 12.05l1.528-5.5H8.903l-1.527 5.5h7.443Z"
-            clip-rule="evenodd"
-        /></svg
-    >
+    <DialogContent>
+        <DialogTitle>Rename channel</DialogTitle>
+        <DialogDescription
+            >Choose a new name for <b>{channel.name}</b></DialogDescription
+        >
 
-    <input bind:this={inputContainer} bind:value={newName} maxlength={20} />
+        <div class="flex items-center">
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="32"
+                height="32"
+                viewBox="0 0 24 24"
+                class="w-[20px] h-[20px] mr-2"
+                ><path
+                    fill="currentColor"
+                    fill-rule="evenodd"
+                    d="M10.723 3.2a.75.75 0 1 0-1.446-.4L7.763 8.25H4a.75.75 0 1 0 0 1.5h3.347l-1.528 5.5H2a.75.75 0 0 0 0 1.5h3.402L4.277 20.8a.75.75 0 0 0 1.446.4l1.236-4.45h7.443l-1.125 4.05a.75.75 0 0 0 1.446.4l1.236-4.45H20a.75.75 0 1 0 0-1.5h-3.624l1.527-5.5H22a.75.75 0 0 0 0-1.5h-3.68l1.403-5.05a.75.75 0 1 0-1.446-.4l-1.514 5.45H9.32zm4.096 12.05l1.528-5.5H8.903l-1.527 5.5z"
+                    clip-rule="evenodd"
+                /></svg
+            >
 
-    <h1 id="name">{channel.name}</h1>
-</div>
+            <Input maxlength={20} bind:value={newName} />
+        </div>
 
-<style>
-    .prop-container {
-        display: flex;
-        align-items: center;
-        margin-bottom: 2px;
-        border-radius: 5px;
-        padding-left: 10px;
-        padding-right: 30px;
-        margin-left: 10px;
-        overflow: hidden;
-        cursor: pointer;
-        height: 38px;
-        text-align: center;
-        transition: 125ms;
-    }
+        <div class="flex w-full justify-end">
+            <DialogClose disabled={processing} class="mr-2"
+                ><Button disabled={processing} variant="outline">Cancel</Button
+                ></DialogClose
+            >
 
-    .prop-container:hover {
-        background: var(--secondary);
-    }
+            <Button disabled={processing} on:click={renameChannel}
+                >Rename</Button
+            >
+        </div>
+    </DialogContent>
+</Dialog>
 
-    .prop-container:active {
-        background: var(--secondary);
-    }
+<Dialog bind:open={deleting} onOpenChange={(e) => (deleting = e)}>
+    <DialogContent>
+        <DialogTitle>Delete channel</DialogTitle>
+        <DialogDescription
+            >Are you sure you want to delete the channel <b>{channel.name}</b
+            >?</DialogDescription
+        >
 
-    .active {
-        background: var(--secondary);
-    }
+        <div class="flex w-full justify-end">
+            <DialogClose disabled={processing} class="mr-2"
+                ><Button disabled={processing} variant="outline">Cancel</Button
+                ></DialogClose
+            >
 
-    .prop-container:hover #name,
-    .active #name {
-        color: var(--text);
-    }
-
-    .preview:hover {
-        background: var(--bg);
-    }
-
-    .renaming {
-        background: transparent;
-        cursor: default;
-    }
-
-    .renaming:hover {
-        background: transparent;
-    }
-
-    svg {
-        width: 20px;
-        height: 20px;
-        border-radius: 10px;
-        margin-right: 5px;
-        fill: var(--gray);
-    }
-
-    #name {
-        min-width: 140px;
-        max-width: 140px;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        overflow: hidden;
-        font-size: 0.95rem;
-        text-align: start;
-        transition: 125ms color;
-        margin-left: 5px;
-        color: var(--text_gray);
-    }
-
-    input {
-        display: none;
-        padding: 0;
-        padding-top: 2px;
-        padding-bottom: 2px;
-        padding-left: 3px;
-        background: transparent;
-        min-width: 140px;
-        max-width: 140px;
-        font-size: 0.95rem;
-        border-radius: 3px;
-        border: 2px solid var(--text);
-        text-align: start;
-        transition: 125ms;
-        font-weight: 500;
-    }
-
-    .renaming input {
-        display: initial;
-    }
-
-    .renaming #name {
-        display: none;
-    }
-
-    @keyframes shimmer {
-        100% {
-            -webkit-mask-position: left;
-        }
-    }
-</style>
+            <Button
+                disabled={processing}
+                on:click={deleteChannel}
+                variant="destructive"
+            >
+                Delete</Button
+            >
+        </div>
+    </DialogContent>
+</Dialog>

@@ -3,30 +3,33 @@
     import { ourData } from 'stores/profile';
     import {
         replyingToId,
+        replyingTo,
         currentRoomMessages as roomMessages,
+        currentServer,
+        canMessage,
     } from 'stores/rooms';
     import Time from 'svelte-time/src/Time.svelte';
-    import { differenceInMinutes, isToday, isYesterday } from 'date-fns';
-    import {
-        findCachedAccount,
-        showDropdownMouse,
-        showModal,
-    } from 'utilities/main';
-    import {
-        ModalTypes,
-        targetImageModal,
-        targetMessageModal,
-        targetMessageModalProfile,
-        targetProfileModal,
-    } from 'stores/modals';
-    import { DropdownTypes } from 'stores/dropdowns';
+    import { differenceInMinutes } from 'date-fns';
+    import { findCachedAccount } from 'utilities/main';
+    import { targetProfileModal, viewingProfile } from 'stores/modals';
     import linkifyHtml from 'linkify-html';
-    import { cachedAccountData, isMobile, mousePos } from 'stores/main';
+    import { cachedAccountData, disconnected } from 'stores/main';
+    import { ExternalLink, Image, Reset, Trash } from 'radix-icons-svelte';
+    import Button from '$lib/components/ui/button/button.svelte';
+    import {
+        Dialog,
+        DialogClose,
+        DialogTrigger,
+    } from '$lib/components/ui/dialog';
+    import DialogContent from '$lib/components/ui/dialog/dialog-content.svelte';
+    import DialogTitle from '$lib/components/ui/dialog/dialog-title.svelte';
+    import DialogDescription from '$lib/components/ui/dialog/dialog-description.svelte';
+    import { Sheet, SheetTrigger } from '$lib/components/ui/sheet';
+    import SheetContent from '$lib/components/ui/sheet/sheet-content.svelte';
 
     export let i = -1;
     export let profileData: FronvoAccount;
     export let messageData: RoomMessage;
-    export let isPreview = false;
     export let hideCondition = false;
     export let isPending = false;
 
@@ -36,26 +39,26 @@
     let showTime: boolean;
     let showLinks = false;
 
-    let image: HTMLImageElement;
-
     $: {
         // Skip time if messages are sent less than 15 minutes ago
         showTime =
-            new Date(messageData.creationDate).getDay() !=
-                new Date($roomMessages[i - 1]?.message.creationDate).getDay() ||
-            (typeof $roomMessages[i - 1] == 'undefined' && !isPreview);
+            differenceInMinutes(
+                new Date(messageData.created_at),
+                new Date($roomMessages[i - 1]?.message.created_at)
+            ) > 15 ||
+            new Date(messageData.created_at).getDay() !==
+                new Date($roomMessages[i - 1]?.message.created_at).getDay() ||
+            typeof $roomMessages[i - 1] == 'undefined';
 
         // Skip context if same account, less than 15 minutes ago
         skipContext =
-            $roomMessages[i - 1]?.profileData.profileId ==
-                profileData.profileId &&
+            $roomMessages[i - 1]?.profileData.id == profileData?.id &&
             !showTime &&
             differenceInMinutes(
-                new Date(messageData.creationDate),
-                new Date($roomMessages[i - 1]?.message.creationDate)
+                new Date(messageData.created_at),
+                new Date($roomMessages[i - 1]?.message.created_at)
             ) < 15 &&
-            !isPreview &&
-            !messageData.isReply;
+            !messageData.reply_id;
 
         // Sanitise first
         showLinks =
@@ -65,52 +68,31 @@
     }
 
     async function showProfileModal(): Promise<void> {
-        if (isPreview) return;
-
-        if (profileData.profileId == $ourData.profileId) {
+        if (profileData.id == $ourData.id) {
             $targetProfileModal = $ourData;
         } else {
             $targetProfileModal = await findCachedAccount(
-                profileData.profileId,
+                profileData.id,
                 $cachedAccountData
             );
         }
 
-        showModal(ModalTypes.Profile);
+        $viewingProfile = true;
     }
 
     async function showReplyProfileModal(): Promise<void> {
-        if (isPreview) return;
-
         const targetAccount = getRepliedMessage().profileData;
 
-        if (targetAccount.profileId == $ourData.profileId) {
+        if (targetAccount.id == $ourData.id) {
             $targetProfileModal = $ourData;
         } else {
             $targetProfileModal = await findCachedAccount(
-                targetAccount.profileId,
+                targetAccount.id,
                 $cachedAccountData
             );
         }
 
-        showModal(ModalTypes.Profile);
-    }
-
-    function showImage(): void {
-        if (isPreview) return;
-
-        $targetImageModal = messageData.attachment || messageData.tenorUrl;
-
-        showModal(ModalTypes.Image);
-    }
-
-    function showOptions(): void {
-        if (hideCondition || isPending || isPreview) return;
-
-        $targetMessageModal = messageData;
-        $targetMessageModalProfile = profileData;
-
-        showDropdownMouse(DropdownTypes.Message, $mousePos);
+        $viewingProfile = true;
     }
 
     function getRepliedMessage(): {
@@ -120,151 +102,251 @@
         for (const messageIndex in $roomMessages) {
             const message = $roomMessages[messageIndex];
 
-            if (message.message?.messageId == messageData.replyId) {
+            if (message.message?.id == messageData.reply_id) {
                 return message;
             }
         }
     }
+
+    function updateReplying(): void {
+        $replyingTo = messageData.profile_id;
+        $replyingToId = messageData.id;
+    }
+
+    function deleteMessage(): void {
+        // if (!$isInServer) {
+        //     socket.emit('deleteMessage', {
+        //         roomId: $currentRoomId,
+        //         messageId: messageData.messageId,
+        //     });
+        // } else {
+        //     socket.emit('deleteChannelMessage', {
+        //         serverId: $currentServer.serverId,
+        //         channelId: $currentChannel.channelId,
+        //         messageId: messageData.messageId,
+        //     });
+        // }
+    }
 </script>
 
-{#if showTime && !isPreview}
-    <div class={`time-container ${hideCondition ? 'hide' : ''}`}>
-        <h1 id="time">
-            <!-- Any other day -->
+{#if showTime}
+    <div class="flex">
+        <h1
+            class="font-medium text-[0.65rem] m-auto w-max rounded-full border-accent bg-secondary/40 mt-2 border-[1px] p-1 pr-2 pl-2 select-none"
+        >
             <Time
-                timestamp={messageData.creationDate}
-                format={'MMMM DD, YYYY'}
+                timestamp={messageData.created_at}
+                format="MMMM D, YYYY HH:mm"
             />
         </h1>
     </div>
 {/if}
 
 <div
-    class={`message-container ${isPreview ? 'preview' : ''} ${
-        $replyingToId == messageData.messageId && !isPreview ? 'highlight' : ''
-    } ${!skipContext ? 'spaced' : 'skip'} ${hideCondition ? 'hide' : ''} ${
-        isPending ? 'pending' : ''
-    } ${$isMobile ? 'mobile' : '0'}`}
-    on:contextmenu={(ev) => {
-        showOptions();
-
-        ev.preventDefault();
-    }}
+    class={`message-containe flex flex-col items-start justify-start w-full max-w-full mt-0 cursor-default pl-[15px] pb-[5px] z-[1] group`}
+    class:hidden={hideCondition}
+    class:mt-4={!skipContext}
 >
-    {#if messageData.isReply}
-        <div class="reply-container">
-            <span id="start" />
-            <span id="mid" />
+    {#if messageData.reply_id}
+        <div class="flex items-center pb-1 select-none">
+            <span class="w-[25px] translate-x-4 border-accent border-[1px]" />
+            <span
+                class="w-[2px] h-[20px] translate-y-[9px] translate-x-[-10px] border-accent border-[1px]"
+            />
 
-            <div class="wrapper">
+            <div class="flex items-center ml-6">
                 <img
                     src={getRepliedMessage()?.profileData.avatar
                         ? `${
                               getRepliedMessage()?.profileData.avatar
-                          }/tr:w-40:h-40`
-                        : '/images/avatar.png'}
+                          }/tr:w-48:h-48`
+                        : '/images/avatar.svg'}
                     draggable={false}
-                    alt={`${
-                        getRepliedMessage()?.profileData.profileId
-                    }\'s avatar'`}
+                    alt={`${getRepliedMessage()?.profileData.id}\'s avatar'`}
+                    class={`${
+                        !getRepliedMessage()?.profileData.avatar &&
+                        'bg-primary p-[2px]'
+                    } w-[20px] h-[20px] rounded-full mr-2`}
                 />
                 <h1
                     on:click={showReplyProfileModal}
                     on:keydown={showReplyProfileModal}
                     id="username"
+                    class="text-xs hover:underline cursor-pointer mr-2 font-medium"
                 >
                     {getRepliedMessage()?.profileData.username}
                 </h1>
                 <h1
                     id="reply"
-                    class={`reply-${getRepliedMessage()?.message.messageId}`}
+                    class="text-xs text-[0.85rem] pt-1 pb-1 pr-3 opacity-75 pl-3 h-max bg-secondary/20 rounded-[20px] border max-w-[400px] overflow-hidden text-ellipsis whitespace-nowrap"
                 >
-                    {getRepliedMessage()?.message.content
-                        ? getRepliedMessage()?.message.content
-                        : 'Unknown message'}
+                    {#if getRepliedMessage()?.message.content}
+                        {getRepliedMessage().message.content}
+                    {:else if getRepliedMessage()?.message.attachments}
+                        <Sheet>
+                            <SheetTrigger class="flex hover:underline"
+                                ><Image class="mr-2" /> Attachment</SheetTrigger
+                            >
+
+                            <SheetContent
+                                class="w-max min-w-none m-auto border-accent border-[1px] rounded-t-xl pr-10 pl-10"
+                                side="bottom"
+                            >
+                                <img
+                                    src={`${
+                                        getRepliedMessage()?.message.attachments
+                                    }/tr:pr-true`}
+                                    alt={'Message attachment'}
+                                    class="max-h-[80vh] rounded-xl object-cover m-auto mt-2"
+                                />
+                            </SheetContent>
+                        </Sheet>
+                    {:else if getRepliedMessage()?.message.tenor_url}
+                        <Sheet>
+                            <SheetTrigger class="flex hover:underline"
+                                ><Image class="mr-2" /> GIF</SheetTrigger
+                            >
+
+                            <SheetContent
+                                class="w-max min-w-none m-auto border-accent border-[1px] rounded-t-xl pr-10 pl-10"
+                                side="bottom"
+                            >
+                                <img
+                                    src={`${
+                                        getRepliedMessage()?.message.tenor_url
+                                    }/tr:pr-true`}
+                                    alt={'Message attachment'}
+                                    class="max-h-[80vh] rounded-xl object-cover m-auto mt-2"
+                                />
+                            </SheetContent>
+                        </Sheet>
+                    {:else if getRepliedMessage()?.message.spotify_embed}
+                        <a
+                            class="flex hover:underline cursor-pointer"
+                            target="_blank"
+                            href={getRepliedMessage()?.message.spotify_embed.replace(
+                                '/embed/',
+                                '/'
+                            )}
+                        >
+                            <ExternalLink class="mr-2" /> Spotify song
+                        </a>
+                    {:else}
+                        <span class="italic">Message not found</span>
+                    {/if}
                 </h1>
             </div>
         </div>
     {/if}
 
-    <div class="info-container">
+    <div class="flex">
         {#if !skipContext}
             <img
                 on:click={showProfileModal}
                 on:keydown={showProfileModal}
-                id="avatar"
                 src={profileData.avatar
-                    ? `${profileData.avatar}/tr:w-88:h-88`
-                    : '/images/avatar.png'}
+                    ? `${profileData.avatar}/tr:w-64:h-64`
+                    : '/images/avatar.svg'}
                 draggable={false}
-                alt={`${profileData.profileId}\'s avatar'`}
+                alt={`${profileData.id}\'s avatar'`}
+                class={`${
+                    !profileData.avatar &&
+                    'bg-primary border-accent border-[1px] p-[3px]'
+                } min-w-[32px] w-[32px] h-[32px] rounded-full mt-6 cursor-pointer select-none`}
             />
+        {:else}
+            <h1
+                class="text-xs m-auto min-w-[32px] w-[32px] group-hover:opacity-100 opacity-0"
+            >
+                <Time timestamp={messageData.created_at} format="HH:mm" />
+            </h1>
         {/if}
 
-        <div class="inner">
-            <div class="top-container">
+        <div class="flex flex-col items-start ml-1">
+            <div class="flex items-center justify-center pb-[3px]">
                 {#if !skipContext}
-                    <h1 id="name">{profileData.username}</h1>
-
-                    <h1 id="small-time-2">
-                        {#if isToday(new Date(messageData.creationDate))}
-                            Today at
-                            <Time
-                                timestamp={messageData.creationDate}
-                                format={'HH:mm'}
-                            />
-                        {:else if isYesterday(new Date(messageData.creationDate))}
-                            Yesterday at <Time
-                                timestamp={messageData.creationDate}
-                                format={'HH:mm'}
-                            />
-                        {:else}
-                            <Time
-                                timestamp={messageData.creationDate}
-                                format={'DD/MM/YYYY HH:mm'}
-                            />
-                        {/if}
+                    <h1
+                        class="text-[0.8rem] font-medium max-w-[150px] ml-3 text-ellipsis overflow-hidden"
+                    >
+                        {profileData.username}
                     </h1>
                 {/if}
             </div>
 
-            <div class="message-info-container">
-                {#if messageData.isTenor}
-                    <img
-                        bind:this={image}
-                        id="attachment"
-                        src={messageData.tenorUrl}
-                        draggable={false}
-                        alt={'Tenor GIF'}
-                        on:click={showImage}
-                        on:keydown={showImage}
-                    />
-                {:else if messageData.isSpotify}
-                    <div id="spotify">
-                        {@html `<iframe style="border-radius: 0px" src="${
-                            messageData.spotifyEmbed
+            <div class="flex items-start justify-start">
+                {#if messageData.tenor_url}
+                    <div>
+                        <Sheet>
+                            <SheetTrigger>
+                                <img
+                                    src={messageData.tenor_url}
+                                    draggable={false}
+                                    alt={'Tenor GIF'}
+                                    class={`ml-3 max-h-[250px] rounded-lg`}
+                                />
+                            </SheetTrigger>
+
+                            <SheetContent
+                                side="bottom"
+                                class="w-max min-w-none m-auto border-accent border-[1px] rounded-t-xl pr-10 pl-10"
+                            >
+                                <img
+                                    src={messageData.tenor_url}
+                                    draggable={false}
+                                    alt={'Tenor GIF'}
+                                    class="max-h-[80vh] rounded-xl object-cover m-auto mt-2"
+                                />
+                            </SheetContent>
+                        </Sheet>
+
+                        <h1 class="text-xs ml-4 text-primary uppercase">GIF</h1>
+                    </div>
+                {:else if messageData.spotify_embed}
+                    <div
+                        id="spotify"
+                        class={`${skipContext ? 'ml-[5px]' : 'ml-2'} h-[80px]`}
+                    >
+                        {@html `<iframe style="border-radius: 20px" src="${
+                            messageData.spotify_embed
                         }" width="${
                             document.body.clientWidth < 1000 ? 300 : 400
-                        }" height="80" frameBorder="0" loading="lazy"></iframe>`}
+                        }" height="80" loading="lazy"></iframe>`}
                     </div>
-                {:else if messageData.isImage}
-                    <img
-                        bind:this={image}
-                        id="attachment"
-                        src={`${messageData.attachment}/tr:pr-true`}
-                        draggable={false}
-                        alt={'Message attachment'}
-                        on:click={showImage}
-                        on:keydown={showImage}
-                        width={messageData.width}
-                        height={messageData.height}
-                    />
+                {:else if messageData.attachments.length > 0}
+                    <!-- TODO: Design for multiple -->
+                    <Sheet>
+                        <SheetTrigger>
+                            <img
+                                src={`${messageData.attachments}/tr:q-70`}
+                                draggable={false}
+                                alt={'Message attachment'}
+                                class={`ml-[8px] rounded-lg max-h-[500px] max-w-[500px]`}
+                            />
+                        </SheetTrigger>
+
+                        <SheetContent
+                            class="w-max min-w-none m-auto border-accent border-[1px] rounded-t-xl pr-10 pl-10"
+                            side="bottom"
+                        >
+                            <img
+                                src={`${messageData.attachments}/tr:pr-true`}
+                                alt={'Message attachment'}
+                                class="max-h-[80vh] rounded-xl object-cover m-auto mt-2"
+                            />
+                        </SheetContent>
+                    </Sheet>
                 {:else}
-                    <h1 id="content">
+                    <h1
+                        class={`text-[0.85rem] cursor-text pt-2 pb-2 pr-3 pl-3 w-[100%] h-max whitespace-pre-wrap bg-secondary/20 ml-1.5 rounded-[20px] border ${
+                            $replyingToId &&
+                            $replyingToId === messageData.id &&
+                            'border-primary/25'
+                        }`}
+                    >
                         {#if showLinks}
                             {@html linkifyHtml(messageData.content, {
                                 attributes: {
-                                    class: 'link',
+                                    class: 'text-link font-medium hover:underline no-underline',
                                     target: '_blank',
                                 },
                             })}
@@ -274,345 +356,78 @@
                     </h1>
                 {/if}
 
-                {#if !isPreview}
-                    <svg
-                        on:click={showOptions}
-                        on:keydown={showOptions}
-                        id="menu"
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="32"
-                        height="32"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        ><path
-                            d="M10 12a2 2 0 1 1 0-4a2 2 0 0 1 0 4m0-6a2 2 0 1 1 0-4a2 2 0 0 1 0 4m0 12a2 2 0 1 1 0-4a2 2 0 0 1 0 4"
-                        /></svg
+                {#if !$disconnected}
+                    <div
+                        class="flex items-center h-full ml-2 group-hover:opacity-100 opacity-0"
                     >
+                        {#if messageData.spotify_embed}
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                class="rounded-full w-[26px] hover:bg-secondary/60 h-[26px] p-1"
+                            >
+                                <a
+                                    class="flex hover:underline cursor-pointer"
+                                    target="_blank"
+                                    href={messageData.spotify_embed.replace(
+                                        '/embed/',
+                                        '/'
+                                    )}
+                                    ><ExternalLink />
+                                </a></Button
+                            >
+                        {/if}
+
+                        {#if $canMessage === true}
+                            <Button
+                                size="icon"
+                                variant="ghost"
+                                class="rounded-full w-[26px] hover:bg-secondary/60 h-[26px] p-1"
+                                on:click={updateReplying}
+                            >
+                                <Reset />
+                            </Button>
+                        {/if}
+
+                        {#if $ourData.id === messageData.profile_id || $currentServer?.owner_id === $ourData.id}
+                            <Dialog>
+                                <DialogTrigger>
+                                    <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        class="rounded-full w-[26px] hover:bg-secondary/60 h-[26px] p-1"
+                                    >
+                                        <Trash />
+                                    </Button>
+                                </DialogTrigger>
+
+                                <DialogContent>
+                                    <DialogTitle>Delete message</DialogTitle>
+                                    <DialogDescription
+                                        >This cannot be reversed.</DialogDescription
+                                    >
+
+                                    <div class="flex w-full justify-end">
+                                        <DialogClose class="mr-2"
+                                            ><Button variant="outline"
+                                                >Cancel</Button
+                                            ></DialogClose
+                                        >
+
+                                        <DialogClose>
+                                            <Button
+                                                on:click={deleteMessage}
+                                                variant="destructive"
+                                                >Delete</Button
+                                            >
+                                        </DialogClose>
+                                    </div>
+                                </DialogContent>
+                            </Dialog>
+                        {/if}
+                    </div>
                 {/if}
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    .message-container {
-        display: flex;
-        align-items: start;
-        justify-content: start;
-        flex-direction: column;
-        width: 100%;
-        max-width: 100%;
-        margin-top: 0px;
-        cursor: default;
-        border-left: 2px solid transparent;
-        padding-left: calc(max(1.25%, 0px));
-        padding-bottom: 5px;
-        user-select: none;
-        z-index: 1;
-    }
-
-    .hide {
-        visibility: hidden;
-    }
-
-    .highlight {
-        border-left: 2px solid var(--text);
-    }
-
-    .preview {
-        margin: 0;
-        width: 95%;
-        align-items: start;
-        margin-bottom: 20px;
-    }
-
-    .spaced {
-        margin-top: 15px;
-    }
-
-    .info-container {
-        display: flex;
-    }
-
-    .info-container .inner {
-        display: flex;
-        align-items: start;
-        flex-direction: column;
-        margin-left: 9px;
-    }
-
-    .skip .info-container .inner {
-        margin-left: calc(40px + 8px);
-    }
-
-    .top-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding-bottom: 3px;
-    }
-
-    #name {
-        margin: 0;
-        font-size: 0.95rem;
-        font-weight: 600;
-        color: var(--text);
-    }
-
-    #small-time-2 {
-        margin: 0;
-        font-size: 0.7rem;
-        font-weight: 600;
-        color: var(--gray);
-        margin-left: 9px;
-    }
-
-    .reply-container {
-        display: flex;
-        align-items: center;
-        margin-left: calc(17px);
-        margin-bottom: 8px;
-    }
-
-    .reply-container #start {
-        width: 2px;
-        height: 14px;
-        border: 1px solid var(--primary);
-        border-radius: 20px;
-        overflow: hidden;
-        transform: translateY(7px);
-    }
-
-    .reply-container #mid {
-        width: 30px;
-        height: 2px;
-        border: 1px solid var(--primary);
-        border-radius: 20px;
-        overflow: hidden;
-        margin-bottom: 10px;
-        transform: translateX(-2px) translateY(4px);
-    }
-
-    .reply-container .wrapper {
-        display: flex;
-        align-items: start;
-        justify-content: center;
-        color: var(--text);
-        margin: 0;
-        margin-left: 2px;
-        font-size: 0.95rem;
-        overflow: hidden;
-        text-align: start;
-        background: transparent;
-        border-radius: 15px;
-    }
-
-    .reply-container .wrapper img {
-        width: 20px;
-        min-width: 20px;
-        height: 20px;
-        min-height: 20px;
-        border-radius: 30px;
-        margin-right: 3px;
-        filter: brightness(75%);
-    }
-
-    .reply-container .wrapper #username {
-        margin: 0;
-        font-size: 0.8rem;
-        margin-right: 5px;
-        color: var(--gray);
-        font-weight: 600;
-    }
-
-    .reply-container .wrapper #username:hover {
-        text-decoration: underline;
-        cursor: pointer;
-    }
-
-    .reply-container .wrapper #reply {
-        color: var(--gray);
-        margin: 0;
-        font-size: 0.8rem;
-        white-space: nowrap;
-        text-overflow: ellipsis;
-        max-width: 100%;
-    }
-
-    .time-container {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-left: 1%;
-        border-bottom: 2px solid var(--primary);
-    }
-
-    #time {
-        position: relative;
-        display: inline-block;
-        margin: 0;
-        font-size: 0.7rem;
-        font-weight: 700;
-        color: var(--gray);
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-        transform: translateY(8px);
-        background: var(--primary);
-        padding-left: 10px;
-        padding-right: 10px;
-        border-radius: 5px;
-    }
-
-    .message-info-container {
-        display: flex;
-        align-items: start;
-        justify-content: start;
-    }
-
-    .preview .message-info-container {
-        flex-direction: row;
-    }
-
-    #avatar {
-        width: 44px;
-        min-width: 44px;
-        height: 44px;
-        min-height: 44px;
-        border-radius: 30px;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-        justify-self: start;
-        cursor: pointer;
-    }
-
-    #avatar:active {
-        transform: translateY(1px);
-    }
-
-    .preview #avatar {
-        cursor: default;
-    }
-
-    .message-container:hover .menu-container {
-        opacity: 1;
-    }
-
-    .message-container:hover .message-info-container .menu-container {
-        opacity: 1;
-    }
-
-    #content {
-        background: var(--primary);
-        padding: 5px;
-        padding-left: 10px;
-        padding-right: 10px;
-        border-radius: 5px;
-        color: var(--text);
-        margin: 0;
-        font-size: 0.9rem;
-        font-weight: 500;
-        white-space: pre-wrap;
-        overflow: hidden;
-        text-align: start;
-        user-select: text;
-        cursor: text;
-    }
-
-    .highlight #content {
-        background: white;
-        color: black;
-    }
-
-    .skip #content {
-        margin-left: 5px;
-    }
-
-    .pending #content {
-        opacity: 0.5;
-    }
-
-    .mobile #content {
-        background: var(--tertiary);
-    }
-
-    #attachment {
-        max-width: min(90%, 500px);
-        max-height: min(90%, 500px);
-        border-radius: 5px;
-        cursor: pointer;
-        transition: 150ms;
-        overflow: hidden;
-    }
-
-    .skip #attachment {
-        margin-left: 6px;
-    }
-
-    .preview #attachment {
-        max-width: 100%;
-        overflow: hidden;
-    }
-
-    .skip #spotify {
-        margin-left: 5px;
-    }
-
-    #menu {
-        width: 28px;
-        height: 28px;
-        min-width: 28px;
-        min-height: 28px;
-        margin: auto;
-        margin-left: 5px;
-        fill: var(--gray);
-        opacity: 0;
-        border-radius: 30px;
-        padding: 4px;
-    }
-
-    #menu:hover {
-        background: var(--primary);
-    }
-
-    .message-container:hover #menu {
-        opacity: 1;
-    }
-
-    @media screen and (max-width: 850px) {
-        .mobile #name {
-            font-size: 0.8rem;
-        }
-
-        .mobile #small-time-2 {
-            font-size: 0.6rem;
-        }
-
-        .mobile #avatar {
-            width: 38px;
-            min-width: 38px;
-            height: 38px;
-            min-height: 38px;
-        }
-
-        .mobile #content {
-            font-size: 0.75rem;
-        }
-
-        .skip #content {
-            margin-left: 0;
-        }
-
-        .mobile #attachment {
-            max-width: 80%;
-            max-height: 150px;
-        }
-    }
-</style>

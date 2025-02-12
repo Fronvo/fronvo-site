@@ -16,44 +16,65 @@ export interface FronvoError {
 }
 
 export interface AccountPost {
-    postId: string;
-    author: string;
-    attachment?: string;
-    creationDate: string;
-    totalLikes: number;
-    isLiked: boolean;
+    id: string;
+    text: string;
+    attachment: string;
+    posted_at: string;
+    profile_id: string;
 }
 
 export interface Post {
     post: AccountPost;
     profileData: FronvoAccount;
 }
+
+// export interface FronvoAccount {
+//     profileId: string;
+//     username: string;
+//     bio: string;
+//     avatar: string;
+//     banner: string;
+//     creationDate: string;
+//     isSelf: boolean;
+//     online: boolean;
+//     totalPosts: number;
+//     status?: string;
+//     pendingFriendRequests?: string[];
+//     friends: string[];
+//     isTurbo?: boolean;
+//     hasSpotify?: boolean;
+//     spotifyName?: string;
+//     spotifyURL?: string;
+//     hasGithub?: boolean;
+//     githubName?: string;
+//     githubURL?: string;
+//     currentTrack?: SpotifyCurrentTrack;
+// }
+
 export interface FronvoAccount {
-    profileId: string;
+    id: string;
     username: string;
-    bio: string;
     avatar: string;
-    banner: string;
-    creationDate: string;
-    isSelf: boolean;
+    bio: string;
+    email: string;
+    created_at: string;
+    status: string;
+    last_data_req: string;
     online: boolean;
-    totalPosts: number;
-    status?: string;
-    pendingFriendRequests?: string[];
+    is_self: boolean;
+}
+
+export interface OurAccount extends FronvoAccount {
     friends: string[];
-    isTurbo?: boolean;
-    hasSpotify?: boolean;
-    spotifyName?: string;
-    spotifyURL?: string;
-    hasGithub?: boolean;
-    githubName?: string;
-    githubURL?: string;
+    pending_friend_requests: string[];
+    spotifyRefreshToken?: string;
+    spotifyAccessToken?: string;
 }
 
 export interface SwitchedAccount {
     avatar: string;
     profileId: string;
-    token: string;
+    refreshToken: string;
 }
 
 export interface Room {
@@ -65,47 +86,84 @@ export interface Room {
     dmUser?: FronvoAccount;
 }
 
+export interface Role {
+    id: string;
+    name: string;
+    hex_color: string;
+    created_at: string;
+}
+
+export interface MemberRole {
+    id: string;
+    assigned_at: string;
+    profile_id: string;
+    role_id: string;
+    server_id: string;
+}
+
 export interface Server {
-    serverId: string;
-    ownerId?: string;
-    name?: string;
-    icon?: string;
-    invite?: string;
-    invitesDisabled?: boolean;
-    creationDate?: string;
-    members?: string[];
-    channels?: Channel[];
-    roles?: string[];
-    bannedMembers?: string[];
+    id: string;
+    name: string;
+    avatar: string;
+    banner: string;
+    invite: string;
+    invites_disabled: boolean;
+    members: Member[];
+    banned_members: BannedMember[];
+    channels: Channel[];
+    roles: Role[];
+    owner_id: string;
+}
+
+export interface Member extends FronvoAccount {
+    server_avatar: string;
+    server_username: string;
+    joined_at: string;
+    roles: MemberRole[];
+}
+
+export interface BannedMember extends FronvoAccount {
+    banned_at: string;
 }
 
 export interface Channel {
-    channelId?: string;
-    name?: string;
-    creationDate?: string;
+    id: string;
+    name: string;
+    created_at: string;
+    server_id: string;
 }
 
 export interface RoomMessage {
-    messageId: string;
-    ownerId: string;
+    id: string;
+    profile_id: string;
+    channel_id: string;
+    server_id: string;
     content: string;
-    creationDate: string;
-    isReply: boolean;
-    replyId: string;
-    isImage: boolean;
-    attachment?: string;
-    isSpotify?: boolean;
-    spotifyEmbed?: string;
-    isTenor?: boolean;
-    tenorUrl?: string;
-    width?: number;
-    height?: number;
+    created_at: string;
+    reply_id: string;
+    edited: boolean;
+    attachments: string[];
+    spotify_embed: string;
+    tenor_url: string;
 }
 
-export interface Theme {
+export interface SpotifyCurrentTrack {
     title: string;
-    brandingWhite?: string;
-    brandingDarkenWhite?: string;
-    brandingDark?: string;
-    brandingDarkenDark?: string;
+    href: string;
+    icon: string;
+    artists: { name: string; url: string }[];
+    progress: number;
+    duration: number;
+}
+
+export interface TenorGifs {
+    gif: string;
+    gif_medium: string;
+    gif_tiny: string;
+    gif_nano: string;
+}
+
+export interface FetchedMessage {
+    message: RoomMessage;
+    profileData: FronvoAccount;
 }

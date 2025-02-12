@@ -1,14 +1,16 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
-    import type { FronvoAccount, Room } from 'interfaces/all';
+    import Button from '$lib/components/ui/button/button.svelte';
     import {
-        DropdownTypes,
-        currentDropdownId,
-        dropdownDMRoom,
-        dropdownVisible,
-    } from 'stores/dropdowns';
-    import { isMobile, mousePos, socket } from 'stores/main';
-    import { targetProfileModal } from 'stores/modals';
+        ContextMenu,
+        ContextMenuContent,
+        ContextMenuItem,
+        ContextMenuSeparator,
+        ContextMenuTrigger,
+    } from '$lib/components/ui/context-menu';
+    import type { FronvoAccount, Room } from 'interfaces/all';
+    import { isMobile } from 'stores/main';
+    import { targetProfileModal, viewingProfile } from 'stores/modals';
     import { ourData } from 'stores/profile';
     import {
         currentChannel,
@@ -21,14 +23,14 @@
     } from 'stores/rooms';
     import { onDestroy, onMount } from 'svelte';
     import type { Unsubscriber } from 'svelte/store';
-    import { setTitle, showDropdownMouse } from 'utilities/main';
+    import { setTitle } from 'utilities/main';
+    import { goHome } from 'utilities/rooms';
+    import Indicator from '../all/Indicator.svelte';
 
     export let dmData: Room;
 
     let onlineP = false;
     let dmUser: FronvoAccount;
-
-    let indicator: HTMLDivElement;
 
     let unsubscribe: Unsubscriber;
 
@@ -41,99 +43,90 @@
         $currentRoomMessages = [];
         $currentRoomId = dmData.roomId;
 
-        setTitle(`@${dmUser.profileId}`);
+        setTitle(`${dmUser.id ? `@${dmUser.id}` : 'Deleted user'}`);
 
         // Non-deleted users
-        if (dmUser.profileId) {
-            goto(`/@${dmUser.profileId}`);
+        if (dmUser.id) {
+            goto(`/@${dmUser.id}`);
         }
 
         dmData.unreadCount = 0;
     }
 
-    function showOptions(): void {
-        $targetProfileModal = dmUser;
-        $dropdownDMRoom = dmData;
-
-        showDropdownMouse(DropdownTypes.DM, $mousePos);
+    function viewProfile(): void {
+        $targetProfileModal = dmData.dmUser;
+        $viewingProfile = true;
     }
 
-    function updateIndicator(): void {
-        setTimeout(() => {
-            if (!indicator) return;
+    function closeDM(): void {
+        if ($currentRoomData == dmData) goHome();
 
-            if (onlineP) {
-                indicator.style.background = 'rgb(56, 212, 42)';
-                indicator.style.border = '3px solid var(--bg)';
-                indicator.style.visibility = 'visible';
-            } else {
-                indicator.style.visibility = 'hidden';
-            }
-        }, 0);
+        // socket.emit('closeDM', {
+        //     roomId: dmData.roomId,
+        // });
+
+        $dmsList.splice($dmsList.indexOf(dmData), 1);
+        $dmsList = $dmsList;
     }
 
     onMount(async () => {
         dmUser = dmData.dmUser;
         onlineP = dmUser.online;
 
-        updateIndicator();
+        // socket.on('onlineStatusUpdated', async ({ profileId, online }) => {
+        //     if (dmUser.profileId == profileId) {
+        //         dmUser.online = online;
+        //         onlineP = online;
 
-        socket.on('onlineStatusUpdated', async ({ profileId, online }) => {
-            if (dmUser.profileId == profileId) {
-                dmUser.online = online;
-                onlineP = online;
+        //         dmUser = dmUser;
+        //     }
+        // });
 
-                dmUser = dmUser;
+        // socket.on(
+        //     'profileDataUpdated',
+        //     async ({ profileId, username, avatar }) => {
+        //         if (dmUser.profileId == profileId) {
+        //             dmUser.username = username;
+        //             dmUser.avatar = avatar;
 
-                updateIndicator();
-            }
-        });
+        //             dmData = dmData;
+        //         }
+        //     },
+        // );
 
-        socket.on(
-            'profileDataUpdated',
-            async ({ profileId, username, avatar }) => {
-                if (dmUser.profileId == profileId) {
-                    dmUser.username = username;
-                    dmUser.avatar = avatar;
+        // socket.on('profileStatusUpdated', ({ profileId, status }) => {
+        //     if (dmUser.profileId == profileId) {
+        //         dmUser.status = status;
 
-                    dmData = dmData;
-                }
-            }
-        );
+        //         dmUser = dmUser;
+        //     }
+        // });
 
-        socket.on('profileStatusUpdated', ({ profileId, status }) => {
-            if (dmUser.profileId == profileId) {
-                dmUser.status = status;
+        // socket.on('newMessage', ({ roomId, newMessageData }) => {
+        //     // Dont add unreads if were in already
+        //     if (
+        //         $currentRoomId == roomId ||
+        //         $currentChannel?.channelId == roomId
+        //     )
+        //         return;
 
-                dmUser = dmUser;
-            }
-        });
+        //     if (roomId == dmData.roomId) {
+        //         if (
+        //             newMessageData.profileData.profileId != $ourData.profileId
+        //         ) {
+        //             dmData.unreadCount += 1;
 
-        socket.on('newMessage', ({ roomId, newMessageData }) => {
-            // Dont add unreads if were in already
-            if (
-                $currentRoomId == roomId ||
-                $currentChannel?.channelId == roomId
-            )
-                return;
+        //             new Notification(`${newMessageData.profileData.username}`, {
+        //                 body: newMessageData.message.content,
+        //                 icon: newMessageData.profileData.avatar
+        //                     ? `${newMessageData.profileData.avatar}/tr:w-256:h-256:r-max`
+        //                     : '/favicon.png',
+        //             });
+        //         }
 
-            if (roomId == dmData.roomId) {
-                if (
-                    newMessageData.profileData.profileId != $ourData.profileId
-                ) {
-                    dmData.unreadCount += 1;
-
-                    new Notification(`${newMessageData.profileData.username}`, {
-                        body: newMessageData.message.content,
-                        icon: newMessageData.profileData.avatar
-                            ? `${newMessageData.profileData.avatar}/tr:w-256:h-256:r-max`
-                            : '/favicon.png',
-                    });
-                }
-
-                dmData = dmData;
-            }
-        });
+        //         dmData = dmData;
+        //     }
+        // });
 
         unsubscribe = dmsList.subscribe(() => {
             if ($currentRoomId == dmData.roomId) {
@@ -160,181 +153,82 @@
             ?.toLowerCase()
             .includes($dmsFilter
                     .trim()
-                    .toLowerCase()) || dmUser.profileId?.includes($dmsFilter
+                    .toLowerCase()) || dmUser.id?.includes($dmsFilter
                 .trim()
                 .toLowerCase())}
-        <div
-            class={`dm-container ${
-                ($dropdownDMRoom?.roomId == dmData.roomId &&
-                    $currentDropdownId == DropdownTypes.DM &&
-                    $dropdownVisible) ||
-                $currentRoomId == dmData.roomId
-                    ? 'active'
-                    : ''
-            } ${dmData.unreadCount != 0 ? 'unread' : ''} ${
-                $isMobile ? 'mobile' : ''
-            }`}
-            on:click={enterRoom}
-            on:keydown={enterRoom}
-            on:contextmenu={(ev) => {
-                showOptions();
+        <ContextMenu>
+            <ContextMenuTrigger class="mb-1">
+                <Button
+                    variant="ghost"
+                    class={`select-none group duration-0 h-[40px] text-start pl-2 pr-2 w-[209px] ${
+                        $currentRoomId == dmData.roomId
+                            ? 'bg-accent border-accent'
+                            : ''
+                    } ${dmData.unreadCount != 0 ? 'unread' : ''} ${
+                        $isMobile ? 'mobile' : ''
+                    }`}
+                    on:click={enterRoom}
+                    on:keydown={enterRoom}
+                >
+                    <div class="flex items-center">
+                        <img
+                            id="avatar"
+                            src={dmUser?.avatar
+                                ? `${dmUser?.avatar}/tr:w-64:h-64`
+                                : '/images/avatar.svg'}
+                            alt={`${dmUser?.username}\'s avatar'`}
+                            draggable={false}
+                            class={`${
+                                !dmUser.avatar &&
+                                'bg-primary border-accent border-[1px] p-[3px]'
+                            } w-[28px] h-[28px] rounded-full`}
+                        />
 
-                ev.preventDefault();
-            }}
-        >
-            <div class="badge-container">
-                <img
-                    id="avatar"
-                    src={dmUser?.avatar
-                        ? `${dmUser?.avatar}/tr:w-64:h-64`
-                        : '/images/avatar.png'}
-                    alt={`${dmUser?.username}\'s avatar'`}
-                    draggable={false}
-                />
+                        <Indicator online={onlineP} translateY={10} />
+                    </div>
 
-                <div bind:this={indicator} class="indicator" />
-            </div>
+                    <div class="flex flex-col flex-1 -translate-x-1">
+                        <h1
+                            class={`${
+                                dmData.unreadCount > 0
+                                    ? 'max-w-[95px] font-semibold'
+                                    : 'max-w-[125px]'
+                            } text-ellipsis overflow-hidden`}
+                        >
+                            {dmUser?.username
+                                ? dmUser.username
+                                : 'Deleted user'}
+                        </h1>
 
-            <div class="info-container">
-                <h1 id="name">
-                    {dmUser?.username ? dmUser.username : 'Deleted user'}
-                </h1>
+                        {#if onlineP && dmUser.status}
+                            <h1 class="text-xs text-primary/75 text-[0.69rem]">
+                                {dmUser.status}
+                            </h1>
+                        {/if}
+                    </div>
 
-                {#if onlineP && dmUser.status}
-                    <h1 id="status">{dmUser.status}</h1>
+                    {#if dmData.unreadCount > 0 && $currentRoomId != dmData.roomId}
+                        <h1
+                            class="text-xs border rounded-full p-1 pl-2 pr-2 bg-primary text-accent font-black"
+                        >
+                            {dmData.unreadCount < 10
+                                ? dmData.unreadCount
+                                : '9+'}
+                        </h1>
+                    {/if}
+                </Button>
+            </ContextMenuTrigger>
+            <ContextMenuContent class="w-[150px]">
+                {#if dmUser?.id}
+                    <ContextMenuItem on:click={viewProfile}
+                        >View profile</ContextMenuItem
+                    >
+
+                    <ContextMenuSeparator />
                 {/if}
-            </div>
 
-            {#if dmData.unreadCount > 0 && $currentRoomId != dmData.roomId}
-                <h1 id="unread">
-                    {dmData.unreadCount < 10 ? dmData.unreadCount : '9+'}
-                </h1>
-            {/if}
-        </div>
+                <ContextMenuItem on:click={closeDM}>Close DM</ContextMenuItem>
+            </ContextMenuContent>
+        </ContextMenu>
     {/if}
 {/if}
-
-<style>
-    .dm-container {
-        width: 100%;
-        height: 46px;
-        display: flex;
-        align-items: center;
-        padding: 5px;
-        cursor: pointer;
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-        border-radius: 5px;
-        margin-bottom: 2px;
-        margin-left: 2px;
-        transition: 125ms;
-    }
-
-    .mobile {
-        border-radius: 0;
-    }
-
-    .dm-container:hover {
-        background: var(--secondary);
-    }
-
-    .dm-container:hover #name,
-    .dm-container:hover #status {
-        color: var(--text);
-    }
-
-    .active {
-        background: var(--secondary);
-    }
-
-    .active:hover {
-        background: var(--secondary);
-    }
-
-    .dm-container:active {
-        background: var(--secondary);
-    }
-
-    .info-container {
-        display: flex;
-        flex-direction: column;
-        margin-left: 10px;
-        flex: 1;
-        transform: translateX(-16px);
-    }
-
-    .badge-container {
-        display: flex;
-        align-items: center;
-    }
-
-    .indicator {
-        width: 16px;
-        height: 16px;
-        border-radius: 30px;
-        transform: translateX(-12px) translateY(12px);
-        margin-bottom: 2px;
-    }
-
-    #name {
-        max-width: 130px;
-        font-size: 0.95rem;
-        margin: 0;
-        margin-top: 2px;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        letter-spacing: 0.1px;
-        color: var(--text_gray);
-        transition: 125ms;
-        font-weight: 600;
-    }
-
-    .mobile #name {
-        max-width: 100%;
-    }
-
-    .active #name {
-        color: var(--text);
-    }
-
-    .unread #name {
-        color: var(--text);
-    }
-
-    #status {
-        margin: 0;
-        font-size: 0.75rem;
-        font-weight: 600;
-        color: var(--gray);
-    }
-
-    .active #status {
-        color: var(--text);
-    }
-
-    .mark {
-        font-weight: 900;
-    }
-
-    #avatar {
-        width: 32px;
-        height: 32px;
-        border-radius: 30px;
-    }
-
-    #unread {
-        font-size: 0.9rem;
-        background: white;
-        box-shadow: 0 0 5px white;
-        border-radius: 100px;
-        color: black;
-        font-weight: 700;
-        padding-right: 5px;
-        padding-left: 5px;
-    }
-</style>

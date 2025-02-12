@@ -1,3 +1,5 @@
+import { GENERAL_SECRET, GITHUB_CLIENT_SECRET } from '$env/static/private';
+import { PUBLIC_GITHUB_CLIENT_ID } from '$env/static/public';
 import { json } from '@sveltejs/kit';
 import { io } from 'socket.io-client';
 import { SERVER_URL } from 'stores/main.js';
@@ -13,8 +15,8 @@ export async function POST({ request, url }) {
 
     // Instead of JSON
     let data = new FormData();
-    data.append('client_id', import.meta.env.VITE_GITHUB_CLIENT_ID);
-    data.append('client_secret', import.meta.env.VITE_GITHUB_CLIENT_SECRET);
+    data.append('client_id', PUBLIC_GITHUB_CLIENT_ID);
+    data.append('client_secret', GITHUB_CLIENT_SECRET);
     data.append('code', code);
 
     const res = await fetch('https://github.com/login/oauth/access_token', {
@@ -58,7 +60,7 @@ export async function POST({ request, url }) {
                             client.emit(
                                 'updateConnectionGithub',
                                 {
-                                    secret: import.meta.env.VITE_GENERAL_SECRET,
+                                    secret: GENERAL_SECRET,
                                     name: info.name,
                                     url: info.html_url,
                                 },

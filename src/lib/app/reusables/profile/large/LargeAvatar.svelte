@@ -1,12 +1,16 @@
 <script lang="ts">
     import { goto } from '$app/navigation';
-    import type { Room } from 'interfaces/all';
-    import { isMobile, socket } from 'stores/main';
+    import Button from '$lib/components/ui/button/button.svelte';
     import {
-        ModalTypes,
-        targetFriendModal,
-        targetProfileModal,
-    } from 'stores/modals';
+        Dialog,
+        DialogClose,
+        DialogTitle,
+        DialogDescription,
+        DialogContent,
+    } from '$lib/components/ui/dialog';
+    import type { Room } from 'interfaces/all';
+    import { disconnected, isMobile } from 'stores/main';
+    import { targetProfileModal, viewingProfile } from 'stores/modals';
     import { ourData } from 'stores/profile';
     import {
         currentChannel,
@@ -20,23 +24,86 @@
         mobileShowMembers,
     } from 'stores/rooms';
     import { onMount } from 'svelte';
-    import { dismissModal, setTitle, showModal } from 'utilities/main';
+    import { toast } from 'svelte-sonner';
+    import {
+        isAcceptedImage,
+        setTitle,
+        updateSavedAccount,
+    } from 'utilities/main';
+    import { uploadImage } from 'utilities/rooms';
+    import Indicator from '../../all/Indicator.svelte';
+    import Cookies from 'js-cookie';
 
     export let avatar: string;
     export let online: boolean;
     export let isSelf: boolean;
     export let isFriend: boolean;
+    export let editable = false;
+    export let editableCallback: () => Promise<void> = async () => {};
+    export let editableRevertCallback: () => void = () => {};
 
     let pending = false;
     let processing = false;
 
+    let removingFriend = false;
+
     let indicator: HTMLDivElement;
+
+    let uploading = false;
+
+    function changeAvatar(): void {
+        if (uploading) return;
+
+        let input = document.createElement('input');
+        input.type = 'file';
+
+        input.onchange = async (_) => {
+            let file = Array.from(input.files)[0];
+
+            if (file.size > 10000000) {
+                toast(`Image is above 10MB.`);
+                return;
+            }
+
+            if (isAcceptedImage(file.type)) {
+                const reader = new FileReader();
+
+                reader.addEventListener('load', async () => {
+                    uploading = true;
+
+                    const newIcon = await uploadImage(reader.result);
+
+                    // socket.emit('updateProfileData', {
+                    //     avatar: newIcon,
+                    // });
+
+                    updateSavedAccount(
+                        newIcon,
+                        $ourData.id,
+                        Cookies.get('refreshToken')
+                    );
+
+                    $ourData.avatar = newIcon;
+
+                    uploading = false;
+                });
+
+                reader.readAsDataURL(file);
+            }
+        };
+
+        input.click();
+    }
+
+    function closeModal() {
+        $viewingProfile = false;
+    }
 
     async function attemptEnterRoom(): Promise<void> {
         for (const dmIndex in $dmsList) {
             const dm = $dmsList[dmIndex] as Room;
 
-            if (dm.dmUser.profileId != $targetProfileModal.profileId) continue;
+            if (dm.dmUser.id != $targetProfileModal.id) continue;
 
             if ($currentRoomData?.roomId == dm.roomId) return;
 
@@ -53,45 +120,35 @@
             $isInServer = false;
             $mobileShowMembers = false;
 
-            setTitle(`@${dm.dmUser.profileId}`);
-            goto(`/@${dm.dmUser.profileId}`);
+            setTitle(`@${dm.dmUser.id}`);
+            goto(`/@${dm.dmUser.id}`);
+
+            closeModal();
         }
     }
 
     function messageFriend(): void {
-        if (
-            $currentRoomData?.dmUser.profileId == $targetProfileModal.profileId
-        ) {
-            dismissModal();
-
+        if ($currentRoomData?.dmUser.id == $targetProfileModal.id) {
             return;
         }
 
         attemptEnterRoom();
 
-        socket.emit(
-            'createDM',
-            {
-                profileId: $targetProfileModal.profileId,
-            },
-            attemptEnterRoom
-        );
-
-        dismissModal();
-    }
-
-    function removeFriend(): void {
-        $targetFriendModal = $targetProfileModal;
-
-        showModal(ModalTypes.RemoveFriend);
+        // socket.emit(
+        //     'createDM',
+        //     {
+        //         profileId: $targetProfileModal.profileId,
+        //     },
+        //     attemptEnterRoom,
+        // );
     }
 
     function addFriend(): void {
         if (pending) return;
 
-        socket.emit('addFriend', {
-            profileId: $targetProfileModal.profileId,
-        });
+        // socket.emit('addFriend', {
+        //     profileId: $targetProfileModal.profileId,
+        // });
 
         pending = true;
     }
@@ -101,15 +158,15 @@
 
         processing = true;
 
-        socket.emit(
-            'acceptFriendRequest',
-            {
-                profileId: $targetProfileModal.profileId,
-            },
-            () => {
-                processing = false;
-            }
-        );
+        // socket.emit(
+        //     'acceptFriendRequest',
+        //     {
+        //         profileId: $targetProfileModal.profileId,
+        //     },
+        //     () => {
+        //         processing = false;
+        //     },
+        // );
     }
 
     function rejectFriend(): void {
@@ -117,15 +174,27 @@
 
         processing = true;
 
-        socket.emit(
-            'rejectFriendRequest',
-            {
-                profileId: $targetProfileModal.profileId,
-            },
-            () => {
-                processing = false;
-            }
-        );
+        // socket.emit(
+        //     'rejectFriendRequest',
+        //     {
+        //         profileId: $targetProfileModal.profileId,
+        //     },
+        //     () => {
+        //         processing = false;
+        //     },
+        // );
+    }
+
+    function removeFriend(): void {
+        processing = true;
+
+        // socket.emit(
+        //     'removeFriend',
+        //     { profileId: $targetProfileModal.profileId },
+        //     () => {
+        //         processing = false;
+        //     },
+        // );
     }
 
     function updateIndicator(): void {
@@ -134,12 +203,37 @@
 
             if (online) {
                 indicator.style.background = 'rgb(56, 212, 42)';
-                indicator.style.border = '3px solid var(--bg)';
                 indicator.style.visibility = 'visible';
             } else {
                 indicator.style.visibility = 'hidden';
             }
         }, 0);
+    }
+
+    function editProfile(): void {
+        editable = true;
+    }
+
+    function closeEditing(): void {
+        editable = false;
+    }
+
+    function revertEdits(): void {
+        if (editableRevertCallback) editableRevertCallback();
+
+        closeEditing();
+    }
+
+    async function saveEdits(): Promise<void> {
+        if (editableCallback) {
+            processing = true;
+
+            await editableCallback();
+
+            processing = false;
+        }
+
+        closeEditing();
     }
 
     onMount(() => {
@@ -149,146 +243,118 @@
     });
 </script>
 
-<div class={`top-container ${$isMobile ? 'mobile' : ''}`}>
-    <img
-        id="avatar"
-        src={avatar ? avatar : '/images/avatar.png'}
-        alt={`Avatar`}
-        draggable={false}
-    />
+<div class={`flex translate-y-20 ${$isMobile ? 'mobile' : ''}`}>
+    <div
+        class={`${
+            !avatar && 'bg-primary border-accent border-[1px] p-[3px]'
+        } rounded-full w-[128px] h-[128px] -translate-y-[80px] -translate-x-[20px] select-none ml-[20px]`}
+    >
+        <img
+            src={avatar ? avatar : '/images/avatar.svg'}
+            alt={`Avatar`}
+            draggable={false}
+            on:click={!processing && editable && changeAvatar}
+            class:cursor-pointer={editable}
+            class:hover:opacity-50={editable}
+            class:duration-200={editable}
+            class="w-[128px] h-[128px] rounded-full"
+        />
+    </div>
 
-    <div bind:this={indicator} class="indicator" />
+    <Indicator {online} size="lg" translateX={-54} translateY={10} />
 
-    <span class="placeholder" />
+    <span class="flex-1" />
 
-    {#if !isSelf && $targetProfileModal.profileId}
-        <div class="options">
-            {#if isFriend}
-                {#if $currentRoomData?.dmUser.profileId != $targetProfileModal.profileId}
-                    <button on:click={messageFriend}
-                        >{$isMobile ? 'Message' : 'Send message'}</button
+    {#if $targetProfileModal.id && !editable}
+        <div class="flex pt-2 pr-2 select-none">
+            {#if isSelf}
+                <Button
+                    disabled={$disconnected}
+                    size="sm"
+                    on:click={editProfile}>Edit profile</Button
+                >
+            {:else if isFriend}
+                {#if $currentRoomData?.dmUser.id != $targetProfileModal.id}
+                    <Button
+                        disabled={processing || $disconnected}
+                        variant="outline"
+                        size="sm"
+                        on:click={messageFriend}
+                        >{$isMobile ? 'Message' : 'Send message'}</Button
                     >
                 {/if}
 
-                <button id="danger" on:click={removeFriend}
-                    >Remove{!$isMobile ? ' friend' : ''}</button
+                <Button
+                    on:click={() => {
+                        removingFriend = true;
+                    }}
+                    variant="destructive"
+                    size="sm"
+                    disabled={processing || $disconnected}
+                    class="ml-2">Remove friend</Button
                 >
-            {:else if $ourData.pendingFriendRequests.includes($targetProfileModal.profileId)}
-                <button
-                    class={`${processing ? 'processing' : ''}`}
-                    on:click={acceptFriend}>Accept friend request</button
+            {:else if $ourData.pending_friend_requests.includes($targetProfileModal.id)}
+                <Button
+                    size="sm"
+                    disabled={processing || $disconnected}
+                    class="mr-2"
+                    on:click={acceptFriend}>Accept friend request</Button
                 >
 
-                <button
-                    id="danger"
-                    class={`${processing ? 'processing' : ''}`}
-                    on:click={rejectFriend}>Reject request</button
+                <Button
+                    size="sm"
+                    disabled={processing || $disconnected}
+                    variant="outline"
+                    on:click={rejectFriend}>Reject request</Button
                 >
             {:else}
-                <button id={`${pending ? 'pending' : ''}`} on:click={addFriend}
+                <Button
+                    size="sm"
+                    id={`${pending ? 'pending' : ''}`}
+                    on:click={addFriend}
+                    disabled={pending || processing || $disconnected}
                     >{pending
                         ? 'Friend request pending'
-                        : 'Send friend request'}</button
+                        : 'Send friend request'}</Button
                 >
             {/if}
+        </div>
+    {:else if editable}
+        <div class="flex pt-2 pr-2 select-none">
+            <Button
+                size="sm"
+                class="mr-2"
+                disabled={processing || $disconnected}
+                on:click={saveEdits}>Save changes</Button
+            >
+            <Button
+                size="sm"
+                variant="outline"
+                disabled={processing}
+                on:click={revertEdits}>Discard changes</Button
+            >
         </div>
     {/if}
 </div>
 
-<style>
-    .top-container {
-        display: flex;
-        align-items: center;
-        flex: 1;
-        width: 100%;
-        padding-right: 20px;
-    }
+<Dialog open={removingFriend} onOpenChange={(e) => (removingFriend = e)}>
+    <DialogContent>
+        <DialogTitle>Remove friend</DialogTitle>
+        <DialogDescription
+            >Are you sure you want to remove <b>{$targetProfileModal.id}</b> from
+            your friends?</DialogDescription
+        >
 
-    #avatar {
-        width: 128px;
-        height: 128px;
-        border-radius: 100px;
-        transition: 150ms;
-        margin-left: 20px;
-        transform: translateY(-80px);
-        background: var(--modal_content_bg);
-        -webkit-touch-callout: none;
-        -webkit-user-select: none;
-        -khtml-user-select: none;
-        -moz-user-select: none;
-        -ms-user-select: none;
-        user-select: none;
-    }
+        <div class="flex w-full justify-end">
+            <DialogClose class="mr-2"
+                ><Button variant="outline">Cancel</Button></DialogClose
+            >
 
-    .indicator {
-        width: 32px;
-        height: 32px;
-        border-radius: 30px;
-        transform: translateX(-36px) translateY(-32px);
-        margin-bottom: 2px;
-        margin-right: 7px;
-    }
-
-    .placeholder {
-        flex: 1;
-    }
-
-    .options {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transform: translateY(-35px);
-    }
-
-    button {
-        font-size: 0.9rem;
-        font-weight: 600;
-        transition: 125ms;
-        margin-right: 5px;
-        margin-left: 5px;
-        color: var(--text);
-        background: rgb(125, 125, 125, 0.1);
-    }
-
-    button:hover {
-        background: rgb(125, 125, 125, 0.25);
-        color: var(--text);
-    }
-
-    #pending,
-    .processing {
-        opacity: 0.5;
-        cursor: not-allowed;
-    }
-
-    #danger {
-        background: var(--red);
-        color: white;
-    }
-
-    #danger:hover {
-        background: var(--red_hover);
-    }
-
-    @media screen and (max-width: 850px) {
-        .mobile button {
-            max-width: 140px;
-            font-size: 0.75rem;
-        }
-
-        .mobile #avatar {
-            width: 80px;
-            min-width: 80px;
-            height: 80px;
-            min-height: 80px;
-        }
-
-        .mobile .indicator {
-            width: 24px;
-            min-width: 24px;
-            height: 24px;
-            min-height: 24px;
-            transform: translateX(-24px) translateY(-46px);
-        }
-    }
-</style>
+            <DialogClose>
+                <Button on:click={removeFriend} variant="destructive"
+                    >Remove friend</Button
+                >
+            </DialogClose>
+        </div>
+    </DialogContent>
+</Dialog>
